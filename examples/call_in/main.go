@@ -35,7 +35,8 @@ func main() {
 		select {
 		case dl := <-client.Dialog():
 			fmt.Println("收到：")
-			fmt.Println(dl.User())
+			user, _ := dl.User()
+			fmt.Println("user:", user)
 			dl.SetState(dialog.Ringing)
 			time.Sleep(2 * time.Second)
 			dl.SetState(dialog.Answered)
@@ -44,7 +45,9 @@ func main() {
 				case state := <-dl.State():
 					fmt.Println("in state", state)
 					if state == dialog.Answered {
+						fmt.Println(dl.SDP().Body())
 						go func() {
+							return
 							time.Sleep(5 * time.Second)
 							fmt.Println("我要挂断")
 							dl.Hangup()

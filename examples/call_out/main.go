@@ -8,11 +8,12 @@ import (
 	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/sip"
+	"github.com/go-cmd/cmd"
 )
 
 func main() {
 	// log.EnablePrintMSG(true)
-	client := sip.NewClient("蜗牛", "snail", "abc", "172.20.30.52", 5062)
+	client := sip.NewClient("蜗牛", "snail", "abc", "172.20.50.12", 5062)
 	client.SetSDP(func() *sdp.SDP {
 		body := "v=0\r\n"
 		body += "o=- 3868331676 3868331676 IN IP4 172.20.30.52\r\n"
@@ -28,11 +29,12 @@ func main() {
 		sd, _ := sdp.ParseSDP(body)
 		return sd
 	})
-	ctx, _ := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	client.Start(ctx, "udp", "172.20.50.12", 5060)
 	time.Sleep(1 * time.Second)
 	fmt.Println("呼叫")
-	dl, err := client.Call("pengpeng")
+	_ = cancel
+	dl, err := client.Call("snail")
 	if err != nil {
 		fmt.Println("err", err)
 	}
@@ -40,21 +42,21 @@ func main() {
 	defer dl.Hangup()
 	for {
 		select {
+		case <-ctx.Done():
+			dl.Hangup()
+			return
 		case state := <-dl.State():
-			fmt.Println("state=======", state)
+			fmt.Println("dl1 state=======", state)
 			if state == dialog.Answered {
 				sp := dl.SDP()
-				fmt.Println(sp.Body())
-				fmt.Println("address", sp.Origin.UnicastAddress)
 				for _, media := range sp.MediaDescriptions {
 					if media.MediaName.Media == "audio" {
-						fmt.Println("Port", media.MediaName.Port.Value)
+						rtpURI := fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value)
+						stop := Audio2RTP(ctx, "./test.wav", rtpURI)
+						<-stop
+						dl.Hangup()
 					}
 				}
-				go func() {
-					time.Sleep(10 * time.Second)
-					dl.Hangup()
-				}()
 			}
 			if state == dialog.Hangup {
 				fmt.Println("Hangup")
@@ -68,4 +70,34 @@ func main() {
 			}
 		}
 	}
+}
+
+func Audio2RTP(ctx context.Context, audioUrl string, rtpURI string) chan bool {
+	stopNotice := make(chan bool, 1)
+
+	args := []string{"-re", "-i", audioUrl, "-vn", "-c:a", "pcm_alaw", "-f", "alaw", "-ac", "1", "-ar", "8000",
+		"-f", "rtp", rtpURI,
+	}
+
+	ffmpegCMD := cmd.NewCmd("ffmpeg", args...)
+	statusChan := ffmpegCMD.Start()
+	go func() {
+		defer func() {
+			fmt.Println("AudioPlay end")
+			stopNotice <- true
+		}()
+		for {
+			select {
+			case <-ctx.Done():
+				ffmpegCMD.Stop()
+			case _ = <-statusChan:
+			case cmdErr := <-ffmpegCMD.Stderr:
+				fmt.Println("cmdErr:", cmdErr)
+			case _ = <-ffmpegCMD.Done():
+				fmt.Println("ffmpeg live CMD.Done()")
+				return
+			}
+		}
+	}()
+	return stopNotice
 }

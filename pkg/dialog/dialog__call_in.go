@@ -34,7 +34,7 @@ func (dl *callInDialog) run(mgr manager) {
 	for {
 		select {
 		case state := <-dl.tostate:
-			fmt.Println("dl.state", state)
+			fmt.Println("dl.state:", state)
 			switch state {
 			case Ringing:
 				resp := message.NewResponse(dl.invite, 180, "Ringing")
@@ -56,7 +56,7 @@ func (dl *callInDialog) run(mgr manager) {
 				resp := message.NewResponse(dl.invite, 200, "Ok")
 				// resp.SetHeader(message.NewFromHeader(to.DisplayName, to.Address, to.Params))
 				// resp.SetHeader(message.NewToHeader(from.DisplayName, from.Address, from.Params))
-
+				// resp.SetHeader(message.NewContactHeader(""))
 				resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
 				resp.SetBody(dl.client.SDP())
 				err := dl.client.Send(dl.client.Address(), resp)
@@ -64,6 +64,8 @@ func (dl *callInDialog) run(mgr manager) {
 					logrus.Error(err)
 					fmt.Println(err)
 				}
+
+				fmt.Println("AnsweredAnswered")
 
 			case Missed:
 				resp := message.NewResponse(dl.invite, 480, "Missed")
@@ -91,7 +93,7 @@ func (dl *callInDialog) run(mgr manager) {
 
 		case msg := <-dl.msgs:
 			if req, ok := msg.(message.Request); ok {
-				fmt.Println("req.Method()", req.Method())
+				fmt.Println("req.Method():", req.Method())
 				switch req.Method() {
 				case method.INVITE:
 					resp := message.NewResponse(msg, 100, "Trying")
@@ -101,6 +103,7 @@ func (dl *callInDialog) run(mgr manager) {
 						fmt.Println(err)
 					}
 				case method.ACK:
+					fmt.Println("ACK......")
 					resp := message.NewResponse(msg, 200, "ok")
 
 					err := dl.client.Send(dl.client.Address(), resp)
@@ -109,6 +112,7 @@ func (dl *callInDialog) run(mgr manager) {
 						fmt.Println(err)
 					}
 					dl.fromstate <- Answered
+					fmt.Println("aaaaa")
 				case method.BYE:
 					resp := message.NewResponse(msg, 200, "ok")
 					err := dl.client.Send(dl.client.Address(), resp)

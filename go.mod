@@ -3,6 +3,7 @@ module github.com/go-av/gosip
 go 1.18
 
 require (
+	github.com/go-cmd/cmd v1.4.1
 	github.com/libp2p/go-reuseport v0.2.0
 	github.com/pion/sdp/v2 v2.4.0
 	github.com/sirupsen/logrus v1.9.0
