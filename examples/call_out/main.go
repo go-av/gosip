@@ -13,7 +13,7 @@ import (
 
 func main() {
 	// log.EnablePrintMSG(true)
-	client := sip.NewClient("蜗牛", "snail", "abc", "172.20.50.12", 5062)
+	client := sip.NewClient("蜗牛", "snail", "abc", "172.20.30.52", 5062)
 	client.SetSDP(func() *sdp.SDP {
 		body := "v=0\r\n"
 		body += "o=- 3868331676 3868331676 IN IP4 172.20.30.52\r\n"
@@ -34,7 +34,7 @@ func main() {
 	time.Sleep(1 * time.Second)
 	fmt.Println("呼叫")
 	_ = cancel
-	dl, err := client.Call("snail")
+	dl, err := client.Call("pengpeng")
 	if err != nil {
 		fmt.Println("err", err)
 	}
