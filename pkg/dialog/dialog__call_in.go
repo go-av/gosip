@@ -31,41 +31,30 @@ func (dl *callInDialog) run(mgr manager) {
 	defer func() {
 		mgr.remove(dl.callID)
 	}()
+
 	for {
 		select {
 		case state := <-dl.tostate:
-			fmt.Println("dl.state:", state)
 			switch state {
 			case Ringing:
 				resp := message.NewResponse(dl.invite, 180, "Ringing")
+				resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
+				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), nil))
 				err := dl.client.Send(dl.client.Address(), resp)
 				if err != nil {
 					logrus.Error(err)
 					fmt.Println(err)
 				}
 			case Answered:
-				// to, _ := dl.invite.To()
-				// if to.Params != nil {
-				// 	to.Params = message.NewParams()
-				// }
-				// if _, ok := to.Params.Get("tag"); !ok {
-				// 	to.Params.Set("tag", "")
-				// }
-				// dl.invite.SetHeader(to)
-				// from, _ := dl.invite.From()
 				resp := message.NewResponse(dl.invite, 200, "Ok")
-				// resp.SetHeader(message.NewFromHeader(to.DisplayName, to.Address, to.Params))
-				// resp.SetHeader(message.NewToHeader(from.DisplayName, from.Address, from.Params))
-				// resp.SetHeader(message.NewContactHeader(""))
-				resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
+				resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
+				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), nil))
 				resp.SetBody(dl.client.SDP())
 				err := dl.client.Send(dl.client.Address(), resp)
 				if err != nil {
 					logrus.Error(err)
 					fmt.Println(err)
 				}
-
-				fmt.Println("AnsweredAnswered")
 
 			case Missed:
 				resp := message.NewResponse(dl.invite, 480, "Missed")
@@ -75,44 +64,37 @@ func (dl *callInDialog) run(mgr manager) {
 					fmt.Println(err)
 				}
 			case Hangup:
-				contact, _ := dl.invite.Contact()
-				ss := contact.Address.Clone()
-				byeReq := message.NewRequestMessage("UDP", method.BYE, ss)
-				message.CopyHeaders(dl.invite, byeReq, "Call-ID", "Via", "Max-Forwards")
-				byeReq.SetHeader(message.NewCSeqHeader(12, method.BYE))
-				from, _ := dl.invite.From()
-				to, _ := dl.invite.To()
-				byeReq.SetHeader(message.NewFromHeader(to.DisplayName, to.Address.Clone(), to.Params.Clone()))
-				byeReq.SetHeader(message.NewToHeader(from.DisplayName, from.Address.Clone(), from.Params.Clone()))
-				byeReq.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
+				con, _ := dl.invite.Contact()
+				byeReq := message.NewRequestMessage("UDP", method.BYE, con.Address)
+				message.CopyHeaders(dl.invite, byeReq, "Call-ID", "Via", "From", "To", "Max-Forwards")
+				byeReq.SetHeader(message.NewCSeqHeader(1, method.BYE))
 				err := dl.client.Send(dl.client.Address(), byeReq)
 				if err != nil {
 					fmt.Println(err)
 				}
+				dl.fromstate <- Hangup
 			}
 
 		case msg := <-dl.msgs:
 			if req, ok := msg.(message.Request); ok {
-				fmt.Println("req.Method():", req.Method())
 				switch req.Method() {
 				case method.INVITE:
 					resp := message.NewResponse(msg, 100, "Trying")
+					resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
+					resp.DelHeader("Contact")
 					err := dl.client.Send(dl.client.Address(), resp)
 					if err != nil {
 						logrus.Error(err)
 						fmt.Println(err)
 					}
 				case method.ACK:
-					fmt.Println("ACK......")
 					resp := message.NewResponse(msg, 200, "ok")
-
 					err := dl.client.Send(dl.client.Address(), resp)
 					if err != nil {
 						logrus.Error(err)
 						fmt.Println(err)
 					}
 					dl.fromstate <- Answered
-					fmt.Println("aaaaa")
 				case method.BYE:
 					resp := message.NewResponse(msg, 200, "ok")
 					err := dl.client.Send(dl.client.Address(), resp)
@@ -122,6 +104,8 @@ func (dl *callInDialog) run(mgr manager) {
 					}
 					dl.fromstate <- Hangup
 					return
+				case method.CANCEL:
+					dl.fromstate <- Hangup
 				}
 			}
 

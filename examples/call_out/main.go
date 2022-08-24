@@ -6,20 +6,21 @@ import (
 	"time"
 
 	"github.com/go-av/gosip/pkg/dialog"
+	"github.com/go-av/gosip/pkg/log"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/sip"
 	"github.com/go-cmd/cmd"
 )
 
 func main() {
-	// log.EnablePrintMSG(true)
-	client := sip.NewClient("蜗牛", "snail", "abc", "172.20.30.52", 5062)
+	log.EnablePrintMSG(true)
+	client := sip.NewClient("蜗牛", "snail_out", "abc", "172.20.30.52", 5063)
 	client.SetSDP(func() *sdp.SDP {
 		body := "v=0\r\n"
 		body += "o=- 3868331676 3868331676 IN IP4 172.20.30.52\r\n"
 		body += "s=Gosip 1.0.0 (MacOSX)\r\n"
 		body += "t=0 0\r\n"
-		body += "m=audio 50006 RTP/AVP 9 8 0 101\r\n"
+		body += "m=audio 50006 RTP/AVP 8 0 101\r\n"
 		body += "c=IN IP4 172.20.30.52\r\n"
 		body += "a=rtcp:50007\r\n"
 		body += "a=rtpmap:8 PCMA/8000\r\n"
@@ -29,12 +30,11 @@ func main() {
 		sd, _ := sdp.ParseSDP(body)
 		return sd
 	})
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, _ := context.WithCancel(context.Background())
 	client.Start(ctx, "udp", "172.20.50.12", 5060)
 	time.Sleep(1 * time.Second)
 	fmt.Println("呼叫")
-	_ = cancel
-	dl, err := client.Call("pengpeng")
+	dl, err := client.Call("snail_in")
 	if err != nil {
 		fmt.Println("err", err)
 	}
@@ -46,9 +46,13 @@ func main() {
 			dl.Hangup()
 			return
 		case state := <-dl.State():
-			fmt.Println("dl1 state=======", state)
 			if state == dialog.Answered {
 				sp := dl.SDP()
+
+				for _, media := range sp.MediaDescriptions {
+					fmt.Println(media.MediaName.Media, sp.Origin.UnicastAddress, media.MediaName.Port.Value)
+				}
+
 				for _, media := range sp.MediaDescriptions {
 					if media.MediaName.Media == "audio" {
 						rtpURI := fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value)
@@ -63,9 +67,7 @@ func main() {
 				return
 			}
 			if state == dialog.Error {
-				fmt.Println("Error")
-				fmt.Println(dl.Reason())
-				fmt.Println(dl.StatusCode())
+				fmt.Println("Error", dl.StatusCode(), dl.Reason())
 				return
 			}
 		}
@@ -74,7 +76,6 @@ func main() {
 
 func Audio2RTP(ctx context.Context, audioUrl string, rtpURI string) chan bool {
 	stopNotice := make(chan bool, 1)
-
 	args := []string{"-re", "-i", audioUrl, "-vn", "-c:a", "pcm_alaw", "-f", "alaw", "-ac", "1", "-ar", "8000",
 		"-f", "rtp", rtpURI,
 	}

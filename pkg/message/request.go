@@ -10,6 +10,7 @@ import (
 type Request interface {
 	Message
 	Method() method.Method
+	Recipient() *Address
 }
 
 func NewRequestMessage(transport string, method method.Method, recipient *Address) Message {

@@ -111,7 +111,6 @@ func (dl *callOutDialog) run(mgr manager) {
 						fmt.Println(err)
 					}
 					fmt.Println("收到退出指令")
-					// dl.hangup <- false
 					dl.state <- Hangup
 					return
 				}
