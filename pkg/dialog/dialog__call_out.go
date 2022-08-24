@@ -41,7 +41,7 @@ func (dl *callOutDialog) run(mgr manager) {
 			byeReq.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
 			err := dl.client.Send(dl.client.Address(), byeReq)
 			if err != nil {
-				fmt.Println(err)
+				logrus.Error(err)
 			}
 		case <-dl.timer.C:
 			dl.state <- Missed
@@ -72,7 +72,6 @@ func (dl *callOutDialog) run(mgr manager) {
 
 						if err != nil {
 							logrus.Error("err", err)
-							fmt.Println(err)
 							continue
 						}
 
@@ -101,14 +100,12 @@ func (dl *callOutDialog) run(mgr manager) {
 					err := dl.client.Send(dl.client.Address(), resp)
 					if err != nil {
 						logrus.Error(err)
-						fmt.Println(err)
 					}
 				case method.BYE:
 					resp := message.NewResponse(req, 200, "Ok")
 					err := dl.client.Send(dl.client.Address(), resp)
 					if err != nil {
 						logrus.Error(err)
-						fmt.Println(err)
 					}
 					fmt.Println("收到退出指令")
 					dl.state <- Hangup

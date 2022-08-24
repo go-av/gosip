@@ -53,8 +53,8 @@ func doDialog(dl dialog.Dialog) {
 			fmt.Println("in state", state)
 			if state == dialog.Answered {
 				go func() {
-					// time.Sleep(10 * time.Second)
-					// dl.Hangup()
+					time.Sleep(10 * time.Second)
+					dl.Hangup()
 				}()
 			}
 			if state == dialog.Hangup {

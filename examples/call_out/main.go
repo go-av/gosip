@@ -3,6 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"math/rand"
+	"net"
+	"os"
 	"time"
 
 	"github.com/go-av/gosip/pkg/dialog"
@@ -10,6 +14,10 @@ import (
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/sip"
 	"github.com/go-cmd/cmd"
+	"github.com/pion/rtp"
+	"github.com/pion/rtp/codecs"
+	"github.com/sirupsen/logrus"
+	"github.com/youpy/go-wav"
 )
 
 func main() {
@@ -55,9 +63,9 @@ func main() {
 
 				for _, media := range sp.MediaDescriptions {
 					if media.MediaName.Media == "audio" {
-						rtpURI := fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value)
-						stop := Audio2RTP(ctx, "./test.wav", rtpURI)
-						<-stop
+						Wav2RTP("./test.wav", fmt.Sprintf("%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
+						// stop := Audio2RTP(ctx, "./test.wav", fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
+						// <-stop
 						dl.Hangup()
 					}
 				}
@@ -74,6 +82,7 @@ func main() {
 	}
 }
 
+// 使用 ffmpeg 推送
 func Audio2RTP(ctx context.Context, audioUrl string, rtpURI string) chan bool {
 	stopNotice := make(chan bool, 1)
 	args := []string{"-re", "-i", audioUrl, "-vn", "-c:a", "pcm_alaw", "-f", "alaw", "-ac", "1", "-ar", "8000",
@@ -101,4 +110,58 @@ func Audio2RTP(ctx context.Context, audioUrl string, rtpURI string) chan bool {
 		}
 	}()
 	return stopNotice
+}
+
+// 使用直接推送
+func Wav2RTP(wavpath string, rtpaddress string) {
+	file, _ := os.Open(wavpath)
+	wavReader := wav.NewReader(file)
+
+	conn, err := net.Dial("udp", rtpaddress)
+	if err != nil {
+		panic(err)
+	}
+
+	defer file.Close()
+
+	seq := rtp.NewRandomSequencer()
+	ssrc := rand.Uint32()
+	payloader := &codecs.G711Payloader{}
+	const ulawSamplingRate = 8000 // ulaw sampling rate
+	var pt uint8 = 0
+
+	packetrizer := rtp.NewPacketizer(1200, pt, ssrc, payloader, seq, ulawSamplingRate)
+
+	data := make([]byte, 4096)
+
+	// 1/8000 = 125 mciroseconds
+	// data byte * 125
+
+	tickDuration := time.Microsecond * time.Duration(len(data)*125)
+	ticker := time.NewTicker(tickDuration)
+	for ; true; <-ticker.C {
+		l, err := wavReader.Read(data)
+		if err == io.EOF {
+			fmt.Println("end")
+			break
+		} else if err != nil {
+			logrus.Errorf("Could not read the sample. err: %v", err)
+			return
+		}
+
+		// packetize to the RTP
+		packets := packetrizer.Packetize(data, uint32(l))
+		for _, packet := range packets {
+			b, err := packet.Marshal()
+			if err != nil {
+				continue
+			}
+
+			_, err = conn.Write(b)
+			if err != nil {
+				logrus.Errorf("Could not send the rtp correctly. err: %v", err)
+			}
+		}
+	}
+
 }

@@ -43,7 +43,6 @@ func (dl *callInDialog) run(mgr manager) {
 				err := dl.client.Send(dl.client.Address(), resp)
 				if err != nil {
 					logrus.Error(err)
-					fmt.Println(err)
 				}
 			case Answered:
 				resp := message.NewResponse(dl.invite, 200, "Ok")
@@ -53,7 +52,6 @@ func (dl *callInDialog) run(mgr manager) {
 				err := dl.client.Send(dl.client.Address(), resp)
 				if err != nil {
 					logrus.Error(err)
-					fmt.Println(err)
 				}
 
 			case Missed:
@@ -61,7 +59,6 @@ func (dl *callInDialog) run(mgr manager) {
 				err := dl.client.Send(dl.client.Address(), resp)
 				if err != nil {
 					logrus.Error(err)
-					fmt.Println(err)
 				}
 			case Hangup:
 				con, _ := dl.invite.Contact()
@@ -70,7 +67,7 @@ func (dl *callInDialog) run(mgr manager) {
 				byeReq.SetHeader(message.NewCSeqHeader(1, method.BYE))
 				err := dl.client.Send(dl.client.Address(), byeReq)
 				if err != nil {
-					fmt.Println(err)
+					logrus.Error(err)
 				}
 				dl.fromstate <- Hangup
 			}
@@ -85,14 +82,12 @@ func (dl *callInDialog) run(mgr manager) {
 					err := dl.client.Send(dl.client.Address(), resp)
 					if err != nil {
 						logrus.Error(err)
-						fmt.Println(err)
 					}
 				case method.ACK:
 					resp := message.NewResponse(msg, 200, "ok")
 					err := dl.client.Send(dl.client.Address(), resp)
 					if err != nil {
 						logrus.Error(err)
-						fmt.Println(err)
 					}
 					dl.fromstate <- Answered
 				case method.BYE:
@@ -100,7 +95,6 @@ func (dl *callInDialog) run(mgr manager) {
 					err := dl.client.Send(dl.client.Address(), resp)
 					if err != nil {
 						logrus.Error(err)
-						fmt.Println(err)
 					}
 					dl.fromstate <- Hangup
 					return
