@@ -74,6 +74,8 @@ func Parse(src []byte) (Message, error) {
 		case sdp.ContentType():
 			if err := sdp.Unmarshal([]byte(body)); err == nil {
 				msg.SetBody(sdp)
+			} else {
+				logrus.Errorf("sdp.Unmarshal err:%s", err)
 			}
 		}
 	}

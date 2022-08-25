@@ -196,7 +196,6 @@ func (client *Client) Address() *message.Address {
 	return client.serverAddrees
 }
 
-// Call in
 func (client *Client) Dialog() chan dialog.Dialog {
 	return client.dialogs
 }

@@ -1,32 +1,45 @@
 package sdp
 
-import "github.com/pion/sdp/v2"
+import (
+	"fmt"
 
-func ParseSDP(data string) (*SDP, error) {
+	"github.com/pion/sdp/v3"
+)
+
+func ParseSDP(str string) (*SDP, error) {
 	sd := &SDP{}
-	err := sd.Unmarshal([]byte(data))
-	if err != nil {
-		return nil, err
-	}
-	return sd, nil
+	err := sd.Unmarshal([]byte(str))
+	return sd, err
 }
 
 func NewSDP() *SDP {
 	return &SDP{}
 }
 
-type SDP struct {
-	sdp.SessionDescription
-}
+type SDP sdp.SessionDescription
 
 func (SDP) ContentType() string {
 	return "application/sdp"
 }
 
-func (sdp *SDP) Body() string {
-	data, err := sdp.Marshal()
+func (sd *SDP) Body() string {
+	data, err := (*sdp.SessionDescription)(sd).Marshal()
 	if err != nil {
+		fmt.Println("errr", err)
 		return ""
 	}
 	return string(data)
+}
+
+func (sd *SDP) Marshal() string {
+	data, err := (*sdp.SessionDescription)(sd).Marshal()
+	if err != nil {
+		fmt.Println("errr", err)
+		return ""
+	}
+	return string(data)
+}
+
+func (sd *SDP) Unmarshal(value []byte) error {
+	return (*sdp.SessionDescription)(sd).Unmarshal(value)
 }

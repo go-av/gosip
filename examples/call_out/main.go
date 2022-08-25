@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"math/rand"
@@ -21,28 +22,36 @@ import (
 )
 
 func main() {
+	to := flag.String("to", "snail_in", "call to user")
+	flag.Parse()
+
 	log.EnablePrintMSG(true)
 	client := sip.NewClient("蜗牛", "snail_out", "abc", "172.20.30.52", 5063)
 	client.SetSDP(func() *sdp.SDP {
-		body := "v=0\r\n"
-		body += "o=- 3868331676 3868331676 IN IP4 172.20.30.52\r\n"
-		body += "s=Gosip 1.0.0 (MacOSX)\r\n"
-		body += "t=0 0\r\n"
-		body += "m=audio 50006 RTP/AVP 8 0 101\r\n"
-		body += "c=IN IP4 172.20.30.52\r\n"
-		body += "a=rtcp:50007\r\n"
-		body += "a=rtpmap:8 PCMA/8000\r\n"
-		body += "a=rtpmap:0 PCMU/8000\r\n"
-		body += "a=rtpmap:101 telephone-event/8000\r\n"
-		body += "a=sendrecv\r\n"
-		sd, _ := sdp.ParseSDP(body)
+		str := `v=0
+o=- 3868331676 3868331676 IN IP4 172.20.30.52
+s=Gosip 1.0.0 (MacOSX)
+t=0 0
+m=audio 50006 RTP/AVP 8 0 101
+c=IN IP4 172.20.30.52
+a=rtcp:50007
+a=rtpmap:8 PCMA/8000
+a=rtpmap:0 PCMU/8000
+a=rtpmap:101 telephone-event/8000
+m=video 50006 RTP/AVP 96
+c=IN IP4 172.20.30.52
+a=rtcp:50009
+a=rtpmap:96 VP8/90000
+a=sendrecv`
+		sd, _ := sdp.ParseSDP(str)
 		return sd
 	})
-	ctx, _ := context.WithCancel(context.Background())
+
+	ctx, cancel := context.WithCancel(context.Background())
 	client.Start(ctx, "udp", "172.20.50.12", 5060)
 	time.Sleep(1 * time.Second)
-	fmt.Println("呼叫")
-	dl, err := client.Call("snail_in")
+	fmt.Println("呼叫", *to)
+	dl, err := client.Call(*to)
 	if err != nil {
 		fmt.Println("err", err)
 	}
@@ -63,14 +72,17 @@ func main() {
 
 				for _, media := range sp.MediaDescriptions {
 					if media.MediaName.Media == "audio" {
-						Wav2RTP("./test.wav", fmt.Sprintf("%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
-						// stop := Audio2RTP(ctx, "./test.wav", fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
-						// <-stop
-						dl.Hangup()
+						go func() {
+							stop := Audio2RTP(ctx, "./test.wav", fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
+							<-stop
+							dl.Hangup()
+						}()
+						// Wav2RTP("./test.wav", fmt.Sprintf("%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
 					}
 				}
 			}
 			if state == dialog.Hangup {
+				cancel()
 				fmt.Println("Hangup")
 				return
 			}
