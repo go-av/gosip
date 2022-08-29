@@ -1,0 +1,106 @@
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<link href="https://fonts.googleapis.com/css?family=Quicksand:400,500,700" rel="stylesheet">
+		<title>对讲测试</title>
+		<style>
+			body {
+				font-family: "Quicksand", sans-serif;
+				font-weight: 400;
+				margin: 4em 10%;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>对讲测试</h1>
+		<div>
+			User:<br />
+			<input id="userID" ></input>
+			<button onclick="window.callUser()"> 呼叫 </button><br />
+			<br />
+			<div id="status">等待初始化</div>
+			<br />
+			自己
+			<br />
+			<video id="video1" width="160" height="120" autoplay muted></video> 
+			<br />
+			对方
+			<div id="remoteVideos" ></div> <br />
+			<br />
+			操作日志
+			<br />
+			<div id="logs"></div>
+		</div>
+
+	</body>
+       <script>
+		const domain = window.location.host;
+		const pc = new RTCPeerConnection({
+			iceServers: [
+				{
+					urls: 'stun:stun.l.google.com:19302'
+				}
+			]
+		})
+		const log = msg => {
+			document.getElementById('logs').innerHTML += msg + '<br>'
+		}
+
+		navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+		.then(stream => {
+			stream.getTracks().forEach(track => pc.addTrack(track, stream))
+			document.getElementById('video1').srcObject = stream
+			pc.createOffer().then(d => pc.setLocalDescription(d)).catch(log)
+		}).catch(log)
+
+		pc.oniceconnectionstatechange = e => log(pc.iceConnectionState)
+		pc.onicecandidate = event => {
+			if (event.candidate === null) {
+				log("初始化完毕")
+				document.getElementById('status').innerHTML = "初始化完毕"
+			}
+		}
+
+		pc.ontrack = function (event) {
+			const el = document.createElement(event.track.kind)
+			el.srcObject = event.streams[0]
+			el.autoplay = true
+			el.controls = true
+			document.getElementById('remoteVideos').appendChild(el)
+		}
+
+		pc.addTransceiver('video', {
+			direction: 'sendrecv'
+		})
+		
+		pc.addTransceiver('audio', {
+			direction: 'sendrecv'
+		})
+
+		pc.createOffer().then(d => pc.setLocalDescription(d)).catch(log)
+
+		window.callUser = ()=>{
+			document.getElementById('status').innerHTML = "呼叫中"
+			const userID = document.getElementById('userID').value
+			log("呼叫："+userID)
+			let fetchRes = fetch("//"+domain+"/call?userID="+userID+"&sdp="+btoa(JSON.stringify(pc.localDescription)));
+			fetchRes.then(res =>
+			res.json()).then(d => {
+				log(d.msg)
+				document.getElementById('status').innerHTML = d.msg
+
+				if (d.code == 200){
+					try {
+						log("接听中")
+						document.getElementById('status').innerHTML = "接听中"
+						data=JSON.parse(atob(d.data))
+						pc.setRemoteDescription(new RTCSessionDescription(data))
+						console.log(data.sdp)
+					} catch (e) {
+						alert(e)
+					}
+				}
+			})
+		}
+       </script>
+</html>

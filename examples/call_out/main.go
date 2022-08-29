@@ -48,7 +48,7 @@ a=sendrecv`
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	client.Start(ctx, "udp", "172.20.50.12", 5060)
+	client.Start(ctx, "udp", "172.20.50.14", 25060)
 	time.Sleep(1 * time.Second)
 	fmt.Println("呼叫", *to)
 	dl, err := client.Call(*to)
@@ -73,10 +73,14 @@ a=sendrecv`
 				for _, media := range sp.MediaDescriptions {
 					if media.MediaName.Media == "audio" {
 						go func() {
-							stop := Audio2RTP(ctx, "./test.wav", fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
-							<-stop
+							time.Sleep(5 * time.Second)
 							dl.Hangup()
 						}()
+						// go func() {
+						stop := Audio2RTP(ctx, "./test.wav", fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
+						<-stop
+						dl.Hangup()
+						// }()
 						// Wav2RTP("./test.wav", fmt.Sprintf("%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
 					}
 				}
