@@ -85,10 +85,10 @@ func main() {
 	flag.Parse()
 
 	sipClient = sip.NewClient(*userName, *displayName, *password, *localAddress, types.Port(*loadlPort))
-	sipClient.SetSDP(func() *sdp.SDP {
+	sipClient.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		sdpTmp := `v=0
 o=- 1661500261 1 IN IP4 {{.ip}}
-s=ps
+s=gosip 1.0.0
 c=IN IP4 {{.ip}}
 t=0 0
 m=audio {{.port}} RTP/AVP 111 0 8
@@ -263,6 +263,12 @@ func do(ctx context.Context, w http.ResponseWriter, udpConns map[string]*udpConn
 
 	peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
 		fmt.Printf("Connection State has changed %s \n", connectionState.String())
+		if connectionState == webrtc.ICEConnectionStateFailed {
+			stop <- true
+		}
+		if connectionState == webrtc.ICEConnectionStateClosed {
+			stop <- true
+		}
 	})
 
 	peerConnection.OnConnectionStateChange(func(s webrtc.PeerConnectionState) {

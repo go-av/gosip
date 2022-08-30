@@ -25,7 +25,7 @@ type Client interface {
 	User() string
 	Send(address *message.Address, msg message.Message) error
 	Address() *message.Address
-	SDP() *sdp.SDP
+	SDP(*sdp.SDP) *sdp.SDP
 }
 
 func NewDialogManger(client Client) *DialogManger {

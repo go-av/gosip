@@ -43,6 +43,7 @@ func (dl *callOutDialog) run(mgr manager) {
 			if err != nil {
 				logrus.Error(err)
 			}
+			dl.state <- Hangup
 		case <-dl.timer.C:
 			dl.state <- Missed
 			dl.hangup <- true

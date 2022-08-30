@@ -48,7 +48,7 @@ func (dl *callInDialog) run(mgr manager) {
 				resp := message.NewResponse(dl.invite, 200, "Ok")
 				resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
 				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), nil))
-				resp.SetBody(dl.client.SDP())
+				resp.SetBody(dl.client.SDP(dl.sdp))
 				err := dl.client.Send(dl.client.Address(), resp)
 				if err != nil {
 					logrus.Error(err)

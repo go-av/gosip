@@ -9,7 +9,10 @@ import (
 func ParseSDP(str string) (*SDP, error) {
 	sd := &SDP{}
 	err := sd.Unmarshal([]byte(str))
-	return sd, err
+	if err != nil {
+		return nil, err
+	}
+	return sd, nil
 }
 
 func NewSDP() *SDP {

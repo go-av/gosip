@@ -27,10 +27,10 @@ func main() {
 
 	log.EnablePrintMSG(true)
 	client := sip.NewClient("蜗牛", "snail_out", "abc", "172.20.30.52", 5063)
-	client.SetSDP(func() *sdp.SDP {
+	client.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		str := `v=0
 o=- 3868331676 3868331676 IN IP4 172.20.30.52
-s=Gosip 1.0.0 (MacOSX)
+s=gosip 1.0.0
 t=0 0
 m=audio 50006 RTP/AVP 8 0 101
 c=IN IP4 172.20.30.52
@@ -42,13 +42,18 @@ m=video 50006 RTP/AVP 96
 c=IN IP4 172.20.30.52
 a=rtcp:50009
 a=rtpmap:96 VP8/90000
-a=sendrecv`
-		sd, _ := sdp.ParseSDP(str)
+a=sendrecv
+`
+		sd, err := sdp.ParseSDP(str)
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println(sd.SessionName)
 		return sd
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	client.Start(ctx, "udp", "172.20.50.14", 25060)
+	client.Start(ctx, "udp", "172.20.50.12", 5060)
 	time.Sleep(1 * time.Second)
 	fmt.Println("呼叫", *to)
 	dl, err := client.Call(*to)
@@ -65,7 +70,7 @@ a=sendrecv`
 		case state := <-dl.State():
 			if state == dialog.Answered {
 				sp := dl.SDP()
-
+				fmt.Println("sdp", dl.SDP())
 				for _, media := range sp.MediaDescriptions {
 					fmt.Println(media.MediaName.Media, sp.Origin.UnicastAddress, media.MediaName.Port.Value)
 				}
@@ -76,11 +81,9 @@ a=sendrecv`
 							time.Sleep(5 * time.Second)
 							dl.Hangup()
 						}()
-						// go func() {
 						stop := Audio2RTP(ctx, "./test.wav", fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
 						<-stop
 						dl.Hangup()
-						// }()
 						// Wav2RTP("./test.wav", fmt.Sprintf("%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
 					}
 				}

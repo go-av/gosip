@@ -37,11 +37,13 @@ func (mgr *StreamMgr) run(ip string, port int) {
 }
 
 func (mgr *StreamMgr) LoadOrCreate(address string) *stream {
+	fmt.Println("load", address)
 	if s, ok := mgr.streams.Load(address); ok {
 		return s.(*stream)
 	}
 
 	s := &stream{}
+	fmt.Println("store", address)
 
 	mgr.streams.Store(address, s)
 	return s

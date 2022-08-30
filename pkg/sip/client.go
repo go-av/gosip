@@ -31,7 +31,7 @@ type Client struct {
 	dialogMgr     *dialog.DialogManger
 	dialogs       chan dialog.Dialog
 
-	sdp func() *sdp.SDP
+	sdp func(*sdp.SDP) *sdp.SDP
 }
 
 func NewClient(displayName string, user string, password string, host string, port types.Port) *Client {
@@ -177,7 +177,7 @@ func (client *Client) Call(user string) (dialog.Dialog, error) {
 		message.NewAllowEventHeader("talk"),
 	)
 
-	msg.SetBody(client.sdp())
+	msg.SetBody(client.sdp(nil))
 	err := client.stack.Send(client.serverAddrees, msg)
 	if err != nil {
 		fmt.Println(err)
@@ -204,10 +204,10 @@ func (client *Client) User() string {
 	return client.user
 }
 
-func (client *Client) SDP() *sdp.SDP {
-	return client.sdp()
+func (client *Client) SDP(sd *sdp.SDP) *sdp.SDP {
+	return client.sdp(sd)
 }
 
-func (client *Client) SetSDP(sd func() *sdp.SDP) {
+func (client *Client) SetSDP(sd func(*sdp.SDP) *sdp.SDP) {
 	client.sdp = sd
 }

@@ -13,14 +13,14 @@ import (
 
 func main() {
 	log.EnablePrintMSG(true)
-	client := sip.NewClient("蜗牛", "snail_in", "abc", "172.20.30.52", 5062)
+	client := sip.NewClient("蜗牛", "snail_in", "abc", "172.20.30.52", 5060)
 	ctx, _ := context.WithCancel(context.Background())
 	client.Start(ctx, "udp", "172.20.50.12", 5060)
 	time.Sleep(1 * time.Second)
-	client.SetSDP(func() *sdp.SDP {
+	client.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		str := `v=0
 o=- 3868331676 3868331676 IN IP4 172.20.30.52
-s=Gosip 1.0.0 (MacOSX)
+s=gosip (MacOSX)
 t=0 0
 m=audio 50006 RTP/AVP 8 0 101
 c=IN IP4 172.20.30.52
@@ -32,10 +32,10 @@ m=video 50006 RTP/AVP 96
 c=IN IP4 172.20.30.52
 a=rtcp:50009
 a=rtpmap:96 VP8/90000
-a=sendrecv`
+`
 		sd, err := sdp.ParseSDP(str)
 		if err != nil {
-			fmt.Println("errr=====", err)
+			fmt.Println("err=====", err)
 		}
 		return sd
 	})
@@ -58,6 +58,7 @@ func doDialog(dl dialog.Dialog) {
 		select {
 		case state := <-dl.State():
 			fmt.Println("in state", state)
+			fmt.Println("sdp", dl.SDP())
 			if state == dialog.Answered {
 				go func() {
 					time.Sleep(10 * time.Second)
