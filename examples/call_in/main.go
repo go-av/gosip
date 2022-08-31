@@ -6,13 +6,11 @@ import (
 	"time"
 
 	"github.com/go-av/gosip/pkg/dialog"
-	"github.com/go-av/gosip/pkg/log"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/sip"
 )
 
 func main() {
-	log.EnablePrintMSG(true)
 	client := sip.NewClient("蜗牛", "snail_in", "abc", "172.20.30.52", 5060)
 	ctx, _ := context.WithCancel(context.Background())
 	client.Start(ctx, "udp", "172.20.50.12", 5060)

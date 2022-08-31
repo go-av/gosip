@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/go-av/gosip/pkg/dialog"
-	"github.com/go-av/gosip/pkg/log"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/sip"
 	"github.com/go-cmd/cmd"
@@ -25,7 +24,6 @@ func main() {
 	to := flag.String("to", "snail_in", "call to user")
 	flag.Parse()
 
-	log.EnablePrintMSG(true)
 	client := sip.NewClient("蜗牛", "snail_out", "abc", "172.20.30.52", 5063)
 	client.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		str := `v=0

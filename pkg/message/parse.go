@@ -6,14 +6,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-av/gosip/pkg/log"
 	"github.com/go-av/gosip/pkg/method"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/sirupsen/logrus"
 )
 
 func Parse(src []byte) (Message, error) {
-	log.PrintMSG("parse", string(src))
 	var msg Message
 	var body string
 	bodysplit := strings.Split(string(src), "\r\n\r\n")

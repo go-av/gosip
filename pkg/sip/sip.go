@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	_ "github.com/go-av/gosip/pkg/log"
 	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/transport"
 )

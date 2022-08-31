@@ -10,6 +10,7 @@ import (
 )
 
 type Dialog interface {
+	CallID() string
 	User() (displayName string, user string)
 	State() chan DialogState
 	SetState(DialogState) error

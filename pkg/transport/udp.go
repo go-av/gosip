@@ -5,7 +5,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/go-av/gosip/pkg/log"
 	"github.com/go-av/gosip/pkg/message"
 	reuse "github.com/libp2p/go-reuseport"
 	"github.com/sirupsen/logrus"
@@ -26,6 +25,7 @@ func (ut *UDPTransport) Read() (message.Message, error) {
 		logrus.Error(err)
 		return nil, err
 	}
+	logrus.Debug(string(buffer[:n]))
 	return message.Parse(buffer[:n])
 }
 
@@ -78,9 +78,7 @@ func (ut *UDPTransport) Send(host string, port string, msg message.Message) erro
 		return err
 	}
 
-	log.PrintMSG("send", msg.String())
-
-	logrus.Info("Sending message to " + host + ":" + port)
+	logrus.Debug(msg.String() + " -> " + host + ":" + port)
 	conn, err := reuse.Dial("udp", ut.address.String(), addr.String())
 
 	if err != nil {

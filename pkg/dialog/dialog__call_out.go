@@ -129,6 +129,10 @@ func (dl *callOutDialog) SDP() *sdp.SDP {
 	return dl.sdp
 }
 
+func (dl *callOutDialog) CallID() string {
+	return dl.callID
+}
+
 func (dl *callOutDialog) Hangup() {
 	dl.hangup <- true
 }

@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-av/gosip/examples/webrtc/controller"
 	"github.com/go-av/gosip/pkg/dialog"
-	"github.com/go-av/gosip/pkg/log"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/sip"
 	"github.com/go-av/gosip/pkg/types"
@@ -69,7 +68,6 @@ var sipClient *sip.Client
 var streamMgr *controller.StreamMgr
 
 func main() {
-	log.EnablePrintMSG(true)
 	httpAddress := flag.String("httpAddress", ":80", "Address to host the HTTP server on.")
 	localAddress := flag.String("localSIPAddress", controller.ResolveLocalIP().String(), "sip udp address")
 	loadlPort := flag.Int("localSIPPort", 5060, "sip udp port")

@@ -136,6 +136,10 @@ func (dl *callInDialog) Hangup() {
 	dl.tostate <- Hangup
 }
 
+func (dl *callInDialog) CallID() string {
+	return dl.callID
+}
+
 func (dl *callInDialog) WriteMsg(msg message.Message) {
 	dl.msgs <- msg
 }
