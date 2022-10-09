@@ -97,6 +97,7 @@ func (dl *callOutDialog) run(mgr manager) {
 				cseq, _ := req.CSeq()
 				switch cseq.Method {
 				case method.INVITE:
+					fmt.Println(string(req.Src()))
 					resp := message.NewResponse(req, 200, "Ok")
 					err := dl.client.Send(dl.client.Address(), resp)
 					if err != nil {
@@ -108,7 +109,7 @@ func (dl *callOutDialog) run(mgr manager) {
 					if err != nil {
 						logrus.Error(err)
 					}
-					fmt.Println("收到退出指令")
+					logrus.Debug("收到退出指令")
 					dl.state <- Hangup
 					return
 				}

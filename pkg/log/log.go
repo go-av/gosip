@@ -11,7 +11,6 @@ func init() {
 	logrus.AddHook(NewVideoHook())
 	logrus.SetOutput(os.Stdout)
 	logrus.SetLevel(logrus.DebugLevel)
-
 }
 
 type Level int

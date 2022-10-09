@@ -20,12 +20,12 @@ type UDPTransport struct {
 
 func (ut *UDPTransport) Read() (message.Message, error) {
 	buffer := make([]byte, 2048)
-	n, _, err := ut.Connection.ReadFrom(buffer)
+	n, addr, err := ut.Connection.ReadFrom(buffer)
 	if err != nil {
 		logrus.Error(err)
 		return nil, err
 	}
-	logrus.Debug(string(buffer[:n]))
+	logrus.Debugf("%s -> %s", addr.String(), string(buffer[:n]))
 	return message.Parse(buffer[:n])
 }
 
