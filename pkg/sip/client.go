@@ -86,10 +86,7 @@ func (client *Client) Start(ctx context.Context, transport string, host string, 
 
 // 暂时未做认证
 func (client *Client) registrar(expire int) error {
-	address := client.serverAddrees.Clone()
-	address.Port = 0
-
-	msg := message.NewRequestMessage("UDP", method.REGISTER, address)
+	msg := message.NewRequestMessage("UDP", method.REGISTER, client.serverAddrees.Clone())
 	contactParam := message.NewParams()
 	if expire >= 0 {
 		contactParam.Set("expires", fmt.Sprintf("%d", expire))
