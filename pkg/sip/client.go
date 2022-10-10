@@ -92,12 +92,12 @@ func (client *Client) registrar(expire int) error {
 		contactParam.Set("expires", fmt.Sprintf("%d", expire))
 		msg.AppendHeader(message.NewExpiresHeader(expire))
 	}
-	contactParam.Set("message-expires", "604800")
+	// contactParam.Set("message-expires", "604800")
 
 	msg.AppendHeader(
 		message.NewViaHeader("UDP", client.address.Host, client.address.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		message.NewAllowHeader(),
-		message.NewCSeqHeader(1, method.REGISTER),
+		message.NewCSeqHeader(5, method.REGISTER),
 		message.NewFromHeader(client.displayName, client.address, message.NewParams().Set("tag", utils.RandString(20))),
 		message.NewToHeader(client.displayName, client.address, nil),
 		message.NewCallIDHeader(utils.RandString(20)),
@@ -176,9 +176,9 @@ func (client *Client) Call(user string) (dialog.Dialog, error) {
 	msg.AppendHeader(
 		message.NewViaHeader("UDP", client.address.Host, client.address.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		message.NewAllowHeader(),
-		message.NewCSeqHeader(1, method.INVITE),
+		message.NewCSeqHeader(10, method.INVITE),
 		message.NewFromHeader(client.displayName, message.NewAddress(client.user, client.serverAddrees.Host, 0), message.NewParams().Set("tag", utils.RandString(20))),
-		message.NewToHeader("", message.NewAddress(user, client.serverAddrees.Host, 0), nil),
+		message.NewToHeader("", client.serverAddrees, nil),
 		message.NewCallIDHeader(callID),
 		message.NewMaxForwardsHeader(70),
 		message.NewContactHeader(client.displayName, client.address, nil),
