@@ -25,7 +25,7 @@ func (ut *UDPTransport) Read() (message.Message, error) {
 		logrus.Error(err)
 		return nil, err
 	}
-	logrus.Debugf("%s -> %s", addr.String(), string(buffer[:n]))
+	logrus.Debugf("msg from %s: %s", addr.String(), string(buffer[:n]))
 	return message.Parse(buffer[:n])
 }
 
@@ -78,7 +78,7 @@ func (ut *UDPTransport) Send(host string, port string, msg message.Message) erro
 		return err
 	}
 
-	logrus.Debug(msg.String() + " -> " + host + ":" + port)
+	logrus.Debug("send msg to " + host + ":" + port + "  " + msg.String())
 	conn, err := reuse.Dial("udp", ut.address.String(), addr.String())
 
 	if err != nil {

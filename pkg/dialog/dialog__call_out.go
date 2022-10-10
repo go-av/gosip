@@ -96,13 +96,6 @@ func (dl *callOutDialog) run(mgr manager) {
 			if req, ok := msg.(message.Request); ok {
 				cseq, _ := req.CSeq()
 				switch cseq.Method {
-				case method.INVITE:
-					fmt.Println(string(req.Src()))
-					resp := message.NewResponse(req, 200, "Ok")
-					err := dl.client.Send(dl.client.Address(), resp)
-					if err != nil {
-						logrus.Error(err)
-					}
 				case method.BYE:
 					resp := message.NewResponse(req, 200, "Ok")
 					err := dl.client.Send(dl.client.Address(), resp)

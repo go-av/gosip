@@ -17,6 +17,7 @@ type ContactHeader struct {
 	DisplayName string
 	Address     *Address
 	Params      *Params
+	Transport   string
 }
 
 func (contact *ContactHeader) Name() string {
@@ -31,7 +32,12 @@ func (contact *ContactHeader) Value() string {
 	}
 
 	if contact.Address != nil {
-		buf.WriteString(fmt.Sprintf("<%s>", contact.Address.String()))
+		s := contact.Address.String()
+		// if contact.Transport != "" {
+		s += fmt.Sprintf(";transport=udp")
+		// }
+
+		buf.WriteString(fmt.Sprintf("<%s>", s))
 	} else {
 		buf.WriteString("*")
 	}

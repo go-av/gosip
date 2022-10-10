@@ -61,6 +61,8 @@ func (client *Client) Start(ctx context.Context, transport string, host string, 
 	client.transport = transport
 
 	client.stack.CreateListenPoint(transport, client.address.Host, int(client.address.Port))
+	// client.stack.CreateListenPoint(transport, "0.0.0.0", int(client.address.Port))
+
 	client.stack.SetListener(client)
 
 	ctx, cancelFunc := context.WithCancel(ctx)
@@ -84,21 +86,30 @@ func (client *Client) Start(ctx context.Context, transport string, host string, 
 
 // 暂时未做认证
 func (client *Client) registrar(expire int) error {
-	msg := message.NewRequestMessage("UDP", method.REGISTER, client.serverAddrees)
+	address := client.serverAddrees.Clone()
+	address.Port = 0
+
+	msg := message.NewRequestMessage("UDP", method.REGISTER, address)
 	contactParam := message.NewParams()
 	if expire >= 0 {
 		contactParam.Set("expires", fmt.Sprintf("%d", expire))
 		msg.AppendHeader(message.NewExpiresHeader(expire))
 	}
+	contactParam.Set("message-expires", "604800")
+
 	msg.AppendHeader(
 		message.NewViaHeader("UDP", client.address.Host, client.address.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		message.NewAllowHeader(),
 		message.NewCSeqHeader(1, method.REGISTER),
-		message.NewFromHeader(client.displayName, client.address, message.NewParams().Set("tag", "")),
+		message.NewFromHeader(client.displayName, client.address, message.NewParams().Set("tag", utils.RandString(20))),
 		message.NewToHeader(client.displayName, client.address, nil),
 		message.NewCallIDHeader(utils.RandString(20)),
 		message.NewMaxForwardsHeader(70),
 		message.NewContactHeader(client.displayName, client.address, contactParam),
+		message.NewSupportedHeader([]string{"replaces", "outbound", "gruu"}),
+		message.NewAcceptHeader("application/sdp"),
+		message.NewAcceptHeader("text/plain"),
+		message.NewAcceptHeader("application/vnd.gsma.rcs-ft-http+xml"),
 	)
 
 	err := client.Send(client.serverAddrees, msg)
