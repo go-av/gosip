@@ -24,7 +24,7 @@ func main() {
 	to := flag.String("to", "snail_in", "call to user")
 	flag.Parse()
 
-	client := sip.NewClient("蜗牛", "snail_out", "abc", "172.20.30.52", 5063)
+	client := sip.NewClient("蜗牛", "snail_out", "abc", "172.16.3.174", 5060)
 	client.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		str := `v=0
 o=- 3868331676 3868331676 IN IP4 172.20.30.52
@@ -51,7 +51,9 @@ a=sendrecv
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	client.Start(ctx, "udp", "172.20.50.12", 5060)
+	client.Start(ctx, "udp", "10.168.7.204", 5060)
+	// client.Start(ctx, "udp", "172.20.50.12", 5060)
+
 	time.Sleep(1 * time.Second)
 	fmt.Println("呼叫", *to)
 	dl, err := client.Call(*to)
@@ -60,6 +62,7 @@ a=sendrecv
 	}
 
 	defer dl.Hangup()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -75,14 +78,13 @@ a=sendrecv
 
 				for _, media := range sp.MediaDescriptions {
 					if media.MediaName.Media == "audio" {
-						go func() {
-							time.Sleep(5 * time.Second)
-							dl.Hangup()
-						}()
+						// go func() {
+						// 	time.Sleep(5 * time.Second)
+						// 	dl.Hangup()
+						// }()
 						stop := Audio2RTP(ctx, "./test.wav", fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
 						<-stop
 						dl.Hangup()
-						// Wav2RTP("./test.wav", fmt.Sprintf("%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
 					}
 				}
 			}
