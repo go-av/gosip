@@ -47,6 +47,7 @@ func (dl *callOutDialog) run(mgr manager) {
 		case <-dl.timer.C:
 			dl.state <- Missed
 			dl.hangup <- true
+
 		case msg := <-dl.msgs:
 			if resp, ok := msg.(message.Response); ok {
 				dl.reason = resp.Reason()

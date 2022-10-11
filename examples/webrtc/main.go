@@ -162,7 +162,7 @@ func call(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	timer := time.NewTimer(30 * time.Second)
+	timer := time.NewTimer(30 * time.Second) // 30秒未接，将自动挂断
 	for {
 		select {
 		case <-timer.C:

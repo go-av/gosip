@@ -25,7 +25,7 @@ func (ut *UDPTransport) Read() (message.Message, error) {
 		logrus.Error(err)
 		return nil, err
 	}
-	logrus.Debugf("%s -> %s    %s", addr.String(), ut.address.String(), string(buffer[:n]))
+	logrus.Debugf("%s --> %s    %s", addr.String(), ut.address.String(), string(buffer[:n]))
 	return message.Parse(buffer[:n])
 }
 
@@ -46,7 +46,7 @@ func (ut *UDPTransport) Build(host string, port int) error {
 	}
 
 	var err error
-	ut.Connection, err = reuse.ListenPacket("udp", fmt.Sprintf("0.0.0.0:%d", port))
+	ut.Connection, err = reuse.ListenPacket("udp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
 		logrus.Error(err)
 		return err
@@ -78,9 +78,8 @@ func (ut *UDPTransport) Send(host string, port string, msg message.Message) erro
 		return err
 	}
 
-	logrus.Debugf("%s -> %s   %s", ut.address.String(), addr.String(), msg.String())
+	logrus.Debugf("%s --> %s   %s", ut.address.String(), addr.String(), msg.String())
 	conn, err := reuse.Dial("udp", ut.address.String(), addr.String())
-
 	if err != nil {
 		logrus.Error("Some error %v", err)
 		return err

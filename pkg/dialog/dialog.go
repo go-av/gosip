@@ -68,7 +68,7 @@ func (mgr *DialogManger) HandleMessage(msg message.Message) Dialog {
 		dl := &callOutDialog{
 			client: mgr.client,
 			callID: callID.Value(),
-			timer:  time.NewTimer(20 * time.Second),
+			timer:  time.NewTimer(35 * time.Second),
 			msgs:   make(chan message.Message, 10),
 			state:  make(chan DialogState, 4),
 			invite: msg,
@@ -91,10 +91,12 @@ func (mgr *DialogManger) HandleMessage(msg message.Message) Dialog {
 
 		invite: msg,
 
-		sdp: msg.Body().(*sdp.SDP),
-
 		displayName: from.DisplayName,
 		user:        from.Address.User,
+	}
+
+	if sdp, ok := msg.Body().(*sdp.SDP); ok {
+		dl.sdp = sdp
 	}
 
 	mgr.dialogs.Store(callID.Value(), dl)

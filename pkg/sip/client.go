@@ -61,7 +61,6 @@ func (client *Client) Start(ctx context.Context, transport string, host string, 
 	client.transport = transport
 
 	client.stack.CreateListenPoint(transport, client.address.Host, int(client.address.Port))
-	// client.stack.CreateListenPoint(transport, "0.0.0.0", int(client.address.Port))
 
 	client.stack.SetListener(client)
 
@@ -117,8 +116,6 @@ func (client *Client) registrar(expire int) error {
 }
 
 func (client *Client) HandleRequests(msg message.Request) {
-	logrus.Infof("client:%s req: %s", client.user, msg.Method())
-
 	switch msg.Method() {
 	case method.INVITE, method.ACK, method.BYE:
 		dialog := client.dialogMgr.HandleMessage(msg)
@@ -139,9 +136,6 @@ func (client *Client) HandleResponses(msg message.Response) {
 	if !ok {
 		return
 	}
-
-	logrus.Infof("client:%s method: %s response: %d  %s", client.user, cseq.Value(), msg.StatusCode(), msg.Reason())
-
 	switch cseq.Method {
 	case method.REGISTER:
 		var d = time.Duration(1 * time.Second)
@@ -173,15 +167,18 @@ func (client *Client) Call(user string) (dialog.Dialog, error) {
 	da.User = user
 	da.Port = 0
 	msg := message.NewRequestMessage("UDP", method.INVITE, da)
+
+	to := client.serverAddrees.Clone()
+	to.User = user
 	msg.AppendHeader(
 		message.NewViaHeader("UDP", client.address.Host, client.address.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		message.NewAllowHeader(),
 		message.NewCSeqHeader(10, method.INVITE),
 		message.NewFromHeader(client.displayName, message.NewAddress(client.user, client.serverAddrees.Host, 0), message.NewParams().Set("tag", utils.RandString(20))),
-		message.NewToHeader("", client.serverAddrees, nil),
+		message.NewToHeader("", to, nil),
 		message.NewCallIDHeader(callID),
 		message.NewMaxForwardsHeader(70),
-		message.NewContactHeader(client.displayName, client.address, nil),
+		message.NewContactHeader(client.displayName, client.address, message.NewParams().Set("expires", "3600")),
 		message.NewAllowEventHeader("talk"),
 	)
 
