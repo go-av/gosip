@@ -60,6 +60,7 @@ func (dl *callOutDialog) run(mgr manager) {
 				case 200:
 					cseq, _ := resp.CSeq()
 					switch cseq.Method {
+
 					case method.INVITE:
 						if sd, ok := resp.Body().(*sdp.SDP); ok {
 							dl.sdp = sd

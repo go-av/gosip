@@ -168,14 +168,12 @@ func (client *Client) Call(user string) (dialog.Dialog, error) {
 	da.Port = 0
 	msg := message.NewRequestMessage("UDP", method.INVITE, da)
 
-	to := client.serverAddrees.Clone()
-	to.User = user
 	msg.AppendHeader(
 		message.NewViaHeader("UDP", client.address.Host, client.address.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		message.NewAllowHeader(),
-		message.NewCSeqHeader(10, method.INVITE),
+		message.NewCSeqHeader(1, method.INVITE),
 		message.NewFromHeader(client.displayName, message.NewAddress(client.user, client.serverAddrees.Host, 0), message.NewParams().Set("tag", utils.RandString(20))),
-		message.NewToHeader("", to, nil),
+		message.NewToHeader("", message.NewAddress(user, client.serverAddrees.Host, 0), nil),
 		message.NewCallIDHeader(callID),
 		message.NewMaxForwardsHeader(70),
 		message.NewContactHeader(client.displayName, client.address, message.NewParams().Set("expires", "3600")),
