@@ -2,6 +2,7 @@ package dialog
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/method"
@@ -39,7 +40,7 @@ func (dl *callInDialog) run(mgr manager) {
 			case Ringing:
 				resp := message.NewResponse(dl.invite, 180, "Ringing")
 				resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
-				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), nil))
+				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), dl.client.Transport(), nil))
 				err := dl.client.Send(dl.client.Address(), resp)
 				if err != nil {
 					logrus.Error(err)
@@ -47,7 +48,7 @@ func (dl *callInDialog) run(mgr manager) {
 			case Answered:
 				resp := message.NewResponse(dl.invite, 200, "Ok")
 				resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
-				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), nil))
+				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), dl.client.Transport(), nil))
 				resp.SetBody(dl.client.SDP(dl.sdp))
 				err := dl.client.Send(dl.client.Address(), resp)
 				if err != nil {
@@ -62,7 +63,7 @@ func (dl *callInDialog) run(mgr manager) {
 				}
 			case Hangup:
 				con, _ := dl.invite.Contact()
-				byeReq := message.NewRequestMessage("UDP", method.BYE, con.Address)
+				byeReq := message.NewRequestMessage(strings.ToUpper(dl.client.Transport()), method.BYE, con.Address)
 				message.CopyHeaders(dl.invite, byeReq, "Call-ID", "Via", "From", "To", "Max-Forwards")
 				byeReq.SetHeader(message.NewCSeqHeader(1, method.BYE))
 				err := dl.client.Send(dl.client.Address(), byeReq)

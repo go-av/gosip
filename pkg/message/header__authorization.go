@@ -1,13 +1,13 @@
 package message
 
-func NewAuthorizationHeader(auth string) *AuthorizationHeader {
-	au := AuthorizationHeader(auth)
-	return &au
+func NewAuthorizationHeader(data string) *AuthorizationHeader {
+	header := AuthorizationHeader(data)
+	return &header
 }
 
 type AuthorizationHeader string
 
-func (callId *AuthorizationHeader) Name() string {
+func (auth *AuthorizationHeader) Name() string {
 	return "Authorization"
 }
 
@@ -17,4 +17,13 @@ func (auth AuthorizationHeader) Value() string {
 
 func (auth *AuthorizationHeader) Clone() Header {
 	return auth
+}
+
+func init() {
+	defaultHeaderParsers.Register(NewAuthorizationHeader(""))
+}
+
+func (AuthorizationHeader) Parse(data string) (Header, error) {
+	return NewAuthorizationHeader(data), nil
+
 }

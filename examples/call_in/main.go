@@ -2,18 +2,22 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"time"
 
+	"github.com/go-av/gosip/pkg/client"
 	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
-	"github.com/go-av/gosip/pkg/sip"
 )
 
 func main() {
-	client := sip.NewClient("蜗牛", "snail_in", "abc", "172.20.30.52", 5060)
+	transport := flag.String("transport", "udp", "transport:[udp , tcp],default=udp")
+	flag.Parse()
+
+	client := client.NewClient("蜗牛", "snail_in", "abc", *transport, "172.20.30.52", 5060)
 	ctx, _ := context.WithCancel(context.Background())
-	client.Start(ctx, "udp", "172.20.50.12", 5060)
+	client.Start(ctx, "172.20.50.12", 5060)
 	time.Sleep(1 * time.Second)
 	client.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		str := `v=0
@@ -33,7 +37,7 @@ a=rtpmap:96 VP8/90000
 `
 		sd, err := sdp.ParseSDP(str)
 		if err != nil {
-			fmt.Println("err=====", err)
+			panic(err)
 		}
 		return sd
 	})

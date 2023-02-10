@@ -10,9 +10,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-av/gosip/pkg/client"
 	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
-	"github.com/go-av/gosip/pkg/sip"
 	"github.com/go-cmd/cmd"
 	"github.com/pion/rtp"
 	"github.com/pion/rtp/codecs"
@@ -21,44 +21,45 @@ import (
 )
 
 func main() {
+	transport := flag.String("transport", "udp", "transport:[udp , tcp],default=udp")
 	to := flag.String("to", "snail_in", "call to user")
 	flag.Parse()
 
-	client := sip.NewClient("蜗牛", "snail_out", "abc", "172.16.3.174", 5060)
+	client := client.NewClient("蜗牛", "34030000001110000002", "12345678", *transport, "172.20.30.57", 5060)
 	client.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		str := `v=0
-o=- 3868331676 3868331676 IN IP4 172.20.30.52
+o=- 3868331676 3868331676 IN IP4 172.20.30.57
 s=gosip 1.0.0
 t=0 0
 m=audio 50006 RTP/AVP 8 0 101
-c=IN IP4 172.20.30.52
+c=IN IP4 172.20.30.57
 a=rtcp:50007
 a=rtpmap:8 PCMA/8000
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 m=video 50006 RTP/AVP 96
-c=IN IP4 172.20.30.52
+c=IN IP4 172.20.30.57
 a=rtcp:50009
 a=rtpmap:96 VP8/90000
 a=sendrecv
 `
 		sd, err := sdp.ParseSDP(str)
 		if err != nil {
-			fmt.Println(err)
+			panic(err)
 		}
-		fmt.Println(sd.SessionName)
 		return sd
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
-	client.Start(ctx, "udp", "10.168.7.204", 5060)
-	// client.Start(ctx, "udp", "172.20.50.12", 5060)
+	// client.Start(ctx, "172.20.50.12", 5060)
+	client.Start(ctx, "172.20.30.92", 5060)
+	time.Sleep(10 * time.Second)
+	// return
 
-	time.Sleep(1 * time.Second)
 	fmt.Println("呼叫", *to)
 	dl, err := client.Call(*to)
 	if err != nil {
-		fmt.Println("err", err)
+		panic(err)
 	}
 
 	defer dl.Hangup()
@@ -71,17 +72,12 @@ a=sendrecv
 		case state := <-dl.State():
 			if state == dialog.Answered {
 				sp := dl.SDP()
-				fmt.Println("sdp", dl.SDP())
 				for _, media := range sp.MediaDescriptions {
 					fmt.Println(media.MediaName.Media, sp.Origin.UnicastAddress, media.MediaName.Port.Value)
 				}
 
 				for _, media := range sp.MediaDescriptions {
 					if media.MediaName.Media == "audio" {
-						// go func() {
-						// 	time.Sleep(5 * time.Second)
-						// 	dl.Hangup()
-						// }()
 						stop := Audio2RTP(ctx, "./test.wav", fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
 						<-stop
 						dl.Hangup()

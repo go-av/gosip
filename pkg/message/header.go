@@ -187,6 +187,18 @@ func (hs *headers) CSeq() (*CSeqHeader, bool) {
 	return cseq, true
 }
 
+func (hs *headers) WWWAuthenticate() (*WWWAuthenticateHeader, bool) {
+	vals := hs.GetHeaders("WWW-Authenticate")
+	if vals == nil {
+		return nil, false
+	}
+	auth, ok := vals[0].(*WWWAuthenticateHeader)
+	if !ok {
+		return nil, false
+	}
+	return auth, true
+}
+
 func (hs *headers) ContentLength() (*ContentLengthHeader, bool) {
 	vals := hs.GetHeaders("Content-Length")
 	if vals == nil {

@@ -7,6 +7,7 @@ import (
 
 	_ "github.com/go-av/gosip/pkg/log"
 	"github.com/go-av/gosip/pkg/message"
+	"github.com/go-av/gosip/pkg/method"
 	"github.com/go-av/gosip/pkg/transport"
 )
 
@@ -25,7 +26,7 @@ type SipStack struct {
 	transportChannel chan message.Message
 	listener         transport.Listener
 
-	funcMap map[string]func(message.Message)
+	funcMap map[method.Method]func(message.Message)
 }
 
 func (stack *SipStack) CreateListenPoint(protocol string, host string, port int) transport.ListeningPoint {
@@ -39,12 +40,12 @@ func (stack *SipStack) SetListener(listener transport.Listener) {
 	stack.listener = listener
 }
 
-func (stack *SipStack) SetFuncHandler(funcName string, handler func(message.Message)) {
-	stack.funcMap[funcName] = handler
+func (stack *SipStack) SetFuncHandler(method method.Method, handler func(message.Message)) {
+	stack.funcMap[method] = handler
 }
 
 func (stack *SipStack) Start(ctx context.Context) {
-	defer fmt.Println("SipStack id close")
+	defer fmt.Println("SipStack  close")
 	for _, listeningPoint := range stack.ListeningPoints {
 		go listeningPoint.Start()
 	}
@@ -64,6 +65,14 @@ func (stack *SipStack) Start(ctx context.Context) {
 					continue
 				}
 			}
+			if stack.funcMap != nil {
+				if m, ok := msg.CSeq(); ok {
+					if f, ok := stack.funcMap[m.Method]; ok {
+						go f(msg)
+					}
+				}
+			}
+
 		}
 	}
 }

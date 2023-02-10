@@ -31,6 +31,7 @@ type Message interface {
 	ContentLength() (*ContentLengthHeader, bool)
 	ContentType() (*ContentTypeHeader, bool)
 	Contact() (*ContactHeader, bool)
+	WWWAuthenticate() (*WWWAuthenticateHeader, bool)
 	SetSrc([]byte)
 	Src() []byte
 }

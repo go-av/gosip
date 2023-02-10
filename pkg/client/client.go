@@ -1,15 +1,17 @@
-package sip
+package client
 
 import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/method"
 	"github.com/go-av/gosip/pkg/sdp"
+	"github.com/go-av/gosip/pkg/sip"
 	"github.com/go-av/gosip/pkg/types"
 	"github.com/go-av/gosip/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -23,7 +25,9 @@ type Client struct {
 	user        string
 	password    string
 
-	stack *SipStack
+	auth bool
+
+	stack *sip.SipStack
 
 	address       *message.Address // 客户端的地址及端口
 	serverAddrees *message.Address // 服务器地址
@@ -34,12 +38,13 @@ type Client struct {
 	sdp func(*sdp.SDP) *sdp.SDP
 }
 
-func NewClient(displayName string, user string, password string, host string, port types.Port) *Client {
+func NewClient(displayName string, user string, password string, transport string, host string, port types.Port) *Client {
 	client := &Client{
 		displayName: displayName,
 		user:        user,
 		password:    password,
-		stack:       NewSipStack(user),
+		stack:       sip.NewSipStack(user),
+		transport:   transport,
 		address: &message.Address{
 			User: user,
 			Port: port,
@@ -51,66 +56,74 @@ func NewClient(displayName string, user string, password string, host string, po
 	return client
 }
 
-func (client *Client) Start(ctx context.Context, transport string, host string, port int) error {
+func (client *Client) Start(ctx context.Context, host string, port int) error {
 	client.serverAddrees = &message.Address{
 		Host: host,
 		Port: types.Port(port),
 		User: client.user,
 	}
 
-	client.transport = transport
-
-	client.stack.CreateListenPoint(transport, client.address.Host, int(client.address.Port))
-
+	client.stack.CreateListenPoint(client.transport, client.address.Host, int(client.address.Port))
 	client.stack.SetListener(client)
-
 	ctx, cancelFunc := context.WithCancel(ctx)
 
 	client.ctx = ctx
 	client.cancelFunc = cancelFunc
-
 	go client.stack.Start(ctx)
+	time.Sleep(1 * time.Second)
 	go func() {
 		<-client.ctx.Done()
 		// 注销
-		client.registrar(0)
+		client.registrar(0, nil)
 	}()
 
-	if err := client.registrar(-1); err != nil {
+	if err := client.registrar(-1, nil); err != nil {
 		cancelFunc()
 		return err
 	}
 	return nil
 }
+func (client *Client) Transport() string {
+	return client.transport
+}
 
 // 暂时未做认证
-func (client *Client) registrar(expire int) error {
-	msg := message.NewRequestMessage("UDP", method.REGISTER, client.serverAddrees.Clone())
+func (client *Client) registrar(expire int, resp message.Response) error {
+	msg := message.NewRequestMessage(strings.ToUpper(client.transport), method.REGISTER, client.serverAddrees.Clone())
 	contactParam := message.NewParams()
 	if expire >= 0 {
 		contactParam.Set("expires", fmt.Sprintf("%d", expire))
 		msg.AppendHeader(message.NewExpiresHeader(expire))
 	}
-	// contactParam.Set("message-expires", "604800")
 
 	msg.AppendHeader(
-		message.NewViaHeader("UDP", client.address.Host, client.address.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
+		message.NewViaHeader(strings.ToUpper(client.transport), client.address.Host, client.address.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		message.NewAllowHeader(),
-		message.NewCSeqHeader(5, method.REGISTER),
+		message.NewCSeqHeader(1, method.REGISTER),
 		message.NewFromHeader(client.displayName, client.address, message.NewParams().Set("tag", utils.RandString(20))),
 		message.NewToHeader(client.displayName, client.address, nil),
 		message.NewCallIDHeader(utils.RandString(20)),
 		message.NewMaxForwardsHeader(70),
-		message.NewContactHeader(client.displayName, client.address, contactParam),
+		message.NewContactHeader(client.displayName, client.address, client.transport, contactParam),
 		message.NewSupportedHeader([]string{"replaces", "outbound", "gruu"}),
-		message.NewAcceptHeader("application/sdp"),
-		message.NewAcceptHeader("text/plain"),
-		message.NewAcceptHeader("application/vnd.gsma.rcs-ft-http+xml"),
 	)
+
+	if resp != nil {
+		authHeader, ok := resp.WWWAuthenticate()
+		if ok {
+			msg.AppendHeader(authHeader.Auth(client.user, client.password, client.serverAddrees.String()))
+		}
+
+		if cseq, ok := resp.CSeq(); ok {
+			cseq.SeqNo += 1
+			msg.SetHeader(cseq)
+		}
+	}
 
 	err := client.Send(client.serverAddrees, msg)
 	if err != nil {
-		logrus.Errorf("%s registrar failed", client.user)
+		logrus.Errorf("%s registrar failed: %s", client.user, err)
+		return err
 	}
 	return nil
 }
@@ -136,20 +149,37 @@ func (client *Client) HandleResponses(msg message.Response) {
 	if !ok {
 		return
 	}
+	if msg.StatusCode() == 403 {
+		fmt.Println("xxx")
+	}
 	switch cseq.Method {
 	case method.REGISTER:
-		var d = time.Duration(1 * time.Second)
-		if con, ok := msg.Contact(); ok {
-			if param, ok := con.Params.Get("expires"); ok {
-				expire, _ := strconv.ParseInt(param, 10, 64)
-				if (expire - 10) > 0 {
-					d = time.Duration((expire - 10)) * time.Second
+		switch msg.StatusCode() {
+		case 200:
+			fmt.Println("auth---200-")
+			fmt.Println("认证成功")
+			client.auth = true
+			var d = time.Duration(1 * time.Second)
+			if con, ok := msg.Contact(); ok {
+				if param, ok := con.Params.Get("expires"); ok {
+					expire, _ := strconv.ParseInt(param, 10, 64)
+					if (expire - 10) > 0 {
+						d = time.Duration((expire - 10)) * time.Second
+					}
 				}
 			}
+			time.Sleep(d)
+			client.registrar(-1, nil)
+		case 401:
+			client.auth = false
+			client.registrar(4800, msg)
+			fmt.Println("auth---401-")
+		case 403:
+			fmt.Println("auth---403-")
+			fmt.Println(msg.StartLine())
+
 		}
 
-		time.Sleep(d)
-		client.registrar(-1)
 	case method.INVITE:
 		client.dialogMgr.HandleMessage(msg)
 	case method.BYE:
@@ -162,6 +192,9 @@ func (client *Client) HandleResponses(msg message.Response) {
 }
 
 func (client *Client) Call(user string) (dialog.Dialog, error) {
+	// if !client.auth {
+	// 	return nil, errors.New("Unauthorized")
+	// }
 	callID := utils.RandString(30)
 	da := client.serverAddrees.Clone()
 	da.User = user
@@ -176,7 +209,7 @@ func (client *Client) Call(user string) (dialog.Dialog, error) {
 		message.NewToHeader("", message.NewAddress(user, client.serverAddrees.Host, 0), nil),
 		message.NewCallIDHeader(callID),
 		message.NewMaxForwardsHeader(70),
-		message.NewContactHeader(client.displayName, client.address, message.NewParams().Set("expires", "3600")),
+		message.NewContactHeader(client.displayName, client.address, client.transport, message.NewParams().Set("expires", "3600")),
 		message.NewAllowEventHeader("talk"),
 	)
 

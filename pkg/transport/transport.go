@@ -16,7 +16,7 @@ func NewTransportListenPoint(protocol string, host string, port int) ListeningPo
 		return listner
 	case "tcp":
 		logrus.Info("Creating TCP listening point")
-		listner := new(UDPTransport)
+		listner := new(TCPTransport)
 		logrus.Info("Binding to " + host + ":" + strconv.Itoa(port))
 		listner.Build(host, port)
 		return listner

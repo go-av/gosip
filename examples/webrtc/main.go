@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/go-av/gosip/examples/webrtc/controller"
+	"github.com/go-av/gosip/pkg/client"
 	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
-	"github.com/go-av/gosip/pkg/sip"
 	"github.com/go-av/gosip/pkg/types"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
@@ -64,7 +64,7 @@ func resp(w http.ResponseWriter, code int, msg string, data any) {
 	w.Write(d)
 }
 
-var sipClient *sip.Client
+var sipClient *client.Client
 var streamMgr *controller.StreamMgr
 
 func main() {
@@ -82,7 +82,7 @@ func main() {
 
 	flag.Parse()
 
-	sipClient = sip.NewClient(*userName, *displayName, *password, *localAddress, types.Port(*loadlPort))
+	sipClient = client.NewClient(*userName, *displayName, *password, "udp", *localAddress, types.Port(*loadlPort))
 	sipClient.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		sdpTmp := `v=0
 o=- 1661500261 1 IN IP4 {{.ip}}
@@ -123,7 +123,7 @@ a=sendrecv
 	streamMgr = controller.NewStreamMgr(*localAddress, *mediaPort)
 
 	ctx, _ := context.WithCancel(context.Background())
-	sipClient.Start(ctx, "udp", *sipServerAddress, *sipServerPort)
+	sipClient.Start(ctx, *sipServerAddress, *sipServerPort)
 
 	logrus.Println("Listening on", *httpAddress)
 

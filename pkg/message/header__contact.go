@@ -5,11 +5,12 @@ import (
 	"fmt"
 )
 
-func NewContactHeader(displayName string, address *Address, param *Params) *ContactHeader {
+func NewContactHeader(displayName string, address *Address, transport string, param *Params) *ContactHeader {
 	return &ContactHeader{
 		DisplayName: displayName,
 		Address:     address,
 		Params:      param,
+		Transport:   transport,
 	}
 }
 
@@ -33,9 +34,9 @@ func (contact *ContactHeader) Value() string {
 
 	if contact.Address != nil {
 		s := contact.Address.String()
-		// if contact.Transport != "" {
-		s += fmt.Sprintf(";transport=udp")
-		// }
+		if contact.Transport != "" {
+			s += fmt.Sprintf(";transport=%s", contact.Transport)
+		}
 
 		buf.WriteString(fmt.Sprintf("<%s>", s))
 	} else {

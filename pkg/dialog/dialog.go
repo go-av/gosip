@@ -26,6 +26,7 @@ type Client interface {
 	User() string
 	Send(address *message.Address, msg message.Message) error
 	Address() *message.Address
+	Transport() string
 	SDP(*sdp.SDP) *sdp.SDP
 }
 
