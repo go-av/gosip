@@ -18,8 +18,8 @@ func TestParse(t *testing.T) {
 	require.Equal(t, auth.Qop(), "auth")
 	require.Equal(t, auth.Nonce(), "dcd98b7102dd2f0e8b11d0f600bfb0c093")
 	require.Equal(t, auth.Opaque(), "5ccc069c403ebaf9f0171e9517f40e41")
-
 }
+
 func TestAuth(t *testing.T) {
 	auth := authentication.Parse(`
 		Digest realm="testrealm@host.com",

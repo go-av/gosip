@@ -14,7 +14,7 @@ import (
 
 	"github.com/go-av/gosip/examples/webrtc/controller"
 	"github.com/go-av/gosip/pkg/client"
-	"github.com/go-av/gosip/pkg/dialog"
+	"github.com/go-av/gosip/pkg/client/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/types"
 	"github.com/pion/rtcp"

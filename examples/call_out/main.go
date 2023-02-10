@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-av/gosip/pkg/client"
-	"github.com/go-av/gosip/pkg/dialog"
+	"github.com/go-av/gosip/pkg/client/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-cmd/cmd"
 	"github.com/pion/rtp"
@@ -52,9 +52,10 @@ a=sendrecv
 
 	ctx, cancel := context.WithCancel(context.Background())
 	// client.Start(ctx, "172.20.50.12", 5060)
-	client.Start(ctx, "172.20.30.92", 5060)
-	time.Sleep(10 * time.Second)
-	// return
+	err := client.Start(ctx, "172.20.30.92", 5060)
+	if err != nil {
+		panic(err)
+	}
 
 	fmt.Println("呼叫", *to)
 	dl, err := client.Call(*to)

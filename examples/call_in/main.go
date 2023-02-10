@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-av/gosip/pkg/client"
-	"github.com/go-av/gosip/pkg/dialog"
+	"github.com/go-av/gosip/pkg/client/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
 )
 
@@ -17,7 +17,10 @@ func main() {
 
 	client := client.NewClient("蜗牛", "snail_in", "abc", *transport, "172.20.30.52", 5060)
 	ctx, _ := context.WithCancel(context.Background())
-	client.Start(ctx, "172.20.50.12", 5060)
+	err := client.Start(ctx, "172.20.50.12", 5060)
+	if err != nil {
+		panic(err)
+	}
 	time.Sleep(1 * time.Second)
 	client.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		str := `v=0

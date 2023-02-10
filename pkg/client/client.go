@@ -2,12 +2,13 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-av/gosip/pkg/dialog"
+	"github.com/go-av/gosip/pkg/client/dialog"
 	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/method"
 	"github.com/go-av/gosip/pkg/sdp"
@@ -25,7 +26,8 @@ type Client struct {
 	user        string
 	password    string
 
-	auth bool
+	auth         bool
+	authCallback func(err error)
 
 	stack *sip.SipStack
 
@@ -81,7 +83,18 @@ func (client *Client) Start(ctx context.Context, host string, port int) error {
 		cancelFunc()
 		return err
 	}
-	return nil
+	t := time.NewTicker(1 * time.Minute)
+	autherr := make(chan error, 1)
+	client.authCallback = func(err error) {
+		autherr <- err
+	}
+	select {
+	case <-t.C:
+		cancelFunc()
+		return fmt.Errorf("认证超时")
+	case err := <-autherr:
+		return err
+	}
 }
 func (client *Client) Transport() string {
 	return client.transport
@@ -149,16 +162,15 @@ func (client *Client) HandleResponses(msg message.Response) {
 	if !ok {
 		return
 	}
-	if msg.StatusCode() == 403 {
-		fmt.Println("xxx")
-	}
+
 	switch cseq.Method {
 	case method.REGISTER:
 		switch msg.StatusCode() {
 		case 200:
-			fmt.Println("auth---200-")
-			fmt.Println("认证成功")
 			client.auth = true
+			if client.authCallback != nil {
+				client.authCallback(nil)
+			}
 			var d = time.Duration(1 * time.Second)
 			if con, ok := msg.Contact(); ok {
 				if param, ok := con.Params.Get("expires"); ok {
@@ -173,11 +185,11 @@ func (client *Client) HandleResponses(msg message.Response) {
 		case 401:
 			client.auth = false
 			client.registrar(4800, msg)
-			fmt.Println("auth---401-")
-		case 403:
-			fmt.Println("auth---403-")
-			fmt.Println(msg.StartLine())
-
+		case 403, 404:
+			client.auth = false
+			if client.authCallback != nil {
+				client.authCallback(fmt.Errorf(msg.Reason()))
+			}
 		}
 
 	case method.INVITE:
@@ -192,9 +204,9 @@ func (client *Client) HandleResponses(msg message.Response) {
 }
 
 func (client *Client) Call(user string) (dialog.Dialog, error) {
-	// if !client.auth {
-	// 	return nil, errors.New("Unauthorized")
-	// }
+	if !client.auth {
+		return nil, errors.New("Unauthorized")
+	}
 	callID := utils.RandString(30)
 	da := client.serverAddrees.Clone()
 	da.User = user
