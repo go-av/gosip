@@ -9,36 +9,43 @@ import (
 	"github.com/go-av/gosip/pkg/client"
 	"github.com/go-av/gosip/pkg/client/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
+	"github.com/go-av/gosip/pkg/utils"
 )
 
 func main() {
-	transport := flag.String("transport", "udp", "transport:[udp , tcp],default=udp")
-	flag.Parse()
+	localIP := utils.LocalIp()
+	protocol := flag.String("protocol", "udp", "protocol:[udp , tcp],default=udp")
+	localAddr := flag.String("local-addr", fmt.Sprintf("%s:5060", localIP), "SIP IP")
+	serverAddr := flag.String("server-addr", "172.20.50.12:5060", "SIP 服务端地址")
 
-	client := client.NewClient("蜗牛", "snail_in", "abc", *transport, "172.20.30.52", 5060)
+	flag.Parse()
+	client, err := client.NewClient("蜗牛", "snail_in", "abc", *protocol, *localAddr)
+	if err != nil {
+		panic(err)
+	}
 	ctx, _ := context.WithCancel(context.Background())
-	err := client.Start(ctx, "172.20.50.12", 5060)
+	err = client.Start(ctx, *serverAddr)
 	if err != nil {
 		panic(err)
 	}
 	time.Sleep(1 * time.Second)
 	client.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		str := `v=0
-o=- 3868331676 3868331676 IN IP4 172.20.30.52
+o=- 3868331676 3868331676 IN IP4 %s
 s=gosip (MacOSX)
 t=0 0
 m=audio 50006 RTP/AVP 8 0 101
-c=IN IP4 172.20.30.52
+c=IN IP4 %s
 a=rtcp:50007
 a=rtpmap:8 PCMA/8000
 a=rtpmap:0 PCMU/8000
 a=rtpmap:101 telephone-event/8000
 m=video 50006 RTP/AVP 96
-c=IN IP4 172.20.30.52
+c=IN IP4 %s
 a=rtcp:50009
 a=rtpmap:96 VP8/90000
 `
-		sd, err := sdp.ParseSDP(str)
+		sd, err := sdp.ParseSDP(fmt.Sprintf(str, localIP, localIP, localIP))
 		if err != nil {
 			panic(err)
 		}
