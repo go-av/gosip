@@ -24,7 +24,7 @@ func NewRequestMessage(transport string, method method.Method, recipient *Addres
 	req.message.startLine = req.StartLine
 	// req.body = body
 
-	req.SetHeader(NewUserAgentHeader("gosip"))
+	req.SetHeader(NewUserAgentHeader(userAgent))
 
 	return req
 }

@@ -37,7 +37,7 @@ func NewResponse(req Message, statusCode StatusCode, reason string) Response {
 
 	if req != nil {
 		CopyHeaders(req, resp, "Via", "Call-ID", "Contact", "From", "To", "CSeq", "Max-Forwards")
-		resp.SetHeader(NewUserAgentHeader("gosip"))
+		resp.SetHeader(NewUserAgentHeader(userAgent))
 	}
 
 	return resp

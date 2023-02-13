@@ -1,5 +1,11 @@
 package message
 
+func SetUserAgent(ua string) {
+	userAgent = ua
+}
+
+var userAgent = "go-sip"
+
 func NewUserAgentHeader(userAgent string) *UserAgentHeader {
 	ua := UserAgentHeader(userAgent)
 	return &ua
