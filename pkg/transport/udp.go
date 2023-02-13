@@ -13,7 +13,7 @@ import (
 type UDPTransport struct {
 	host             string
 	port             int
-	address          net.UDPAddr
+	address          *net.UDPAddr
 	Connection       net.PacketConn
 	transportChannel chan message.Message
 }
@@ -38,16 +38,15 @@ func (ut *UDPTransport) GetPort() int {
 	return ut.port
 }
 
-func (ut *UDPTransport) Build(host string, port int) error {
-	ut.host = host
-	ut.port = port
-	ut.address = net.UDPAddr{
-		IP:   net.ParseIP(host),
-		Port: port,
+func (ut *UDPTransport) Build(addr string) error {
+	a, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return err
 	}
 
-	var err error
-	ut.Connection, err = reuse.ListenPacket("udp", fmt.Sprintf("%s:%d", host, port))
+	ut.address = a
+
+	ut.Connection, err = reuse.ListenPacket("udp", addr)
 	if err != nil {
 		logrus.Error(err)
 		return err
@@ -70,8 +69,8 @@ func (ut *UDPTransport) SetTransportChannel(channel chan message.Message) {
 	ut.transportChannel = channel
 }
 
-func (ut *UDPTransport) Send(host string, port string, msg message.Message) error {
-	addr, err := net.ResolveUDPAddr("udp", host+":"+port)
+func (ut *UDPTransport) Send(address string, msg message.Message) error {
+	addr, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
 		fmt.Println(err)
 		logrus.Error(err)

@@ -38,8 +38,8 @@ func (dl *callOutDialog) run(mgr manager) {
 			byeReq := message.NewRequestMessage("UDP", method.BYE, ss)
 			message.CopyHeaders(dl.invite, byeReq, "Call-ID", "Via", "From", "To", "Max-Forwards")
 			byeReq.SetHeader(message.NewCSeqHeader(12, method.BYE))
-			byeReq.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
-			err := dl.client.Send(dl.client.Address(), byeReq)
+			byeReq.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().String())))
+			err := dl.client.Send(dl.client.Address().String(), byeReq)
 			if err != nil {
 				logrus.Error(err)
 			}
@@ -70,8 +70,8 @@ func (dl *callOutDialog) run(mgr manager) {
 						newResp := message.NewRequestMessage("UDP", method.ACK, con.Address)
 						message.CopyHeaders(msg, newResp, "Call-ID", "Via", "From", "To", "CSeq", "Max-Forwards")
 						newResp.SetHeader(message.NewCSeqHeader(1, method.ACK))
-						newResp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
-						err := dl.client.Send(dl.client.Address(), newResp)
+						newResp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().String())))
+						err := dl.client.Send(dl.client.Address().String(), newResp)
 
 						if err != nil {
 							logrus.Error("err", err)
@@ -100,7 +100,7 @@ func (dl *callOutDialog) run(mgr manager) {
 				switch cseq.Method {
 				case method.BYE:
 					resp := message.NewResponse(req, 200, "Ok")
-					err := dl.client.Send(dl.client.Address(), resp)
+					err := dl.client.Send(dl.client.Address().String(), resp)
 					if err != nil {
 						logrus.Error(err)
 					}

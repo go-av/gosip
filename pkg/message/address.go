@@ -5,14 +5,12 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/go-av/gosip/pkg/types"
 )
 
-func NewAddress(user string, host string, port types.Port) *Address {
+func NewAddress(user string, addr string, port uint16) *Address {
 	return &Address{
 		User: user,
-		Host: host,
+		Addr: addr,
 		Port: port,
 	}
 }
@@ -20,8 +18,8 @@ func NewAddress(user string, host string, port types.Port) *Address {
 type Address struct {
 	Encrypted bool
 	User      string
-	Host      string
-	Port      types.Port
+	Addr      string
+	Port      uint16
 }
 
 func (s *Address) String() string {
@@ -35,9 +33,9 @@ func (s *Address) String() string {
 	}
 	buf.WriteString(s.User)
 	buf.WriteString("@")
-	buf.WriteString(s.Host)
+	buf.WriteString(s.Addr)
 	if s.Port > 0 {
-		buf.WriteString(":" + s.Port.String())
+		buf.WriteString(":" + strconv.FormatUint(uint64(s.Port), 10))
 	}
 	return buf.String()
 }
@@ -46,7 +44,7 @@ func (address *Address) Clone() *Address {
 	return &Address{
 		Encrypted: address.Encrypted,
 		User:      address.User,
-		Host:      address.Host,
+		Addr:      address.Addr,
 		Port:      address.Port,
 	}
 }
@@ -110,11 +108,11 @@ func ParamAddress(text string) (display string, address *Address, err error) {
 		text = text[i+1:]
 	}
 	if n := strings.Index(text, ":"); n > 0 {
-		address.Host = text[:n]
+		address.Addr = text[:n]
 		port, _ := strconv.ParseUint(text[n+1:], 10, 64)
-		address.Port = types.Port(port)
+		address.Port = uint16(port)
 	} else {
-		address.Host = text
+		address.Addr = text
 	}
 
 	return

@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/sirupsen/logrus"
@@ -17,7 +16,7 @@ func LocalIp() string {
 		if ipNet, ok := address.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
 			if ipNet.IP.To4() != nil {
 				ip = ipNet.IP.String()
-				fmt.Println(ip)
+				return ip
 			}
 		}
 	}

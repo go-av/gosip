@@ -14,6 +14,7 @@ import (
 )
 
 type TCPTransport struct {
+	addr             *net.TCPAddr
 	listener         net.Listener
 	transportChannel chan message.Message
 	connTable        *sync.Map
@@ -65,15 +66,15 @@ func (tt *TCPTransport) SetTransportChannel(channel chan message.Message) {
 	tt.transportChannel = channel
 }
 
-func (tt *TCPTransport) Build(host string, port int) error {
-	var err error
-	addr := net.TCPAddr{
-		IP:   net.ParseIP(host),
-		Port: port,
+func (tt *TCPTransport) Build(addr string) error {
+	a, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return err
 	}
 
+	tt.addr = a
 	tt.connTable = &sync.Map{}
-	tt.listener, err = reuse.Listen("tcp", addr.String())
+	tt.listener, err = reuse.Listen("tcp", a.String())
 	if err != nil {
 		logrus.Error(err)
 		os.Exit(1)
@@ -82,8 +83,7 @@ func (tt *TCPTransport) Build(host string, port int) error {
 	return nil
 }
 
-func (tt *TCPTransport) Send(host string, port string, msg message.Message) error {
-	address := host + ":" + port
+func (tt *TCPTransport) Send(address string, msg message.Message) error {
 	fmt.Println("[GOSIP][TCP]", time.Now().Format(time.RFC3339), tt.listener.Addr().String(), "-> ", address, "\n", msg.String())
 	conn, ok := tt.connTable.Load(address)
 	if !ok {

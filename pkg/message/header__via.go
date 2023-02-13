@@ -6,16 +6,14 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/go-av/gosip/pkg/types"
 )
 
-func NewViaHeader(transport string, host string, port types.Port, params *Params) *ViaHeader {
+func NewViaHeader(transport string, addr string, port uint16, params *Params) *ViaHeader {
 	return &ViaHeader{
 		ProtocolName:    "SIP",
 		ProtocolVersion: "2.0",
-		Transport:       transport,
-		Host:            host,
+		Transport:       strings.ToUpper(transport),
+		Addr:            addr,
 		Port:            port,
 		Params:          params,
 	}
@@ -25,8 +23,8 @@ type ViaHeader struct {
 	ProtocolName    string // SIP
 	ProtocolVersion string // E.g. '2.0'.
 	Transport       string
-	Host            string
-	Port            types.Port
+	Addr            string
+	Port            uint16
 	Params          *Params
 }
 
@@ -42,11 +40,11 @@ func (via *ViaHeader) Value() string {
 			via.ProtocolName,
 			via.ProtocolVersion,
 			via.Transport,
-			via.Host,
+			via.Addr,
 		),
 	)
 	if via.Port > 0 {
-		buffer.WriteString(":" + via.Port.String())
+		buffer.WriteString(":" + strconv.FormatUint(uint64(via.Port), 10))
 	}
 
 	if via.Params != nil && via.Params.Length() > 0 {
@@ -68,7 +66,7 @@ func (via *ViaHeader) Clone() Header {
 		ProtocolName:    via.ProtocolName,
 		ProtocolVersion: via.ProtocolVersion,
 		Transport:       via.Transport,
-		Host:            via.Host,
+		Addr:            via.Addr,
 		Port:            via.Port,
 		Params:          via.Params,
 	}
@@ -100,9 +98,9 @@ func (ViaHeader) Parse(data string) (Header, error) {
 	viabodys := strings.Split(parts[1], ";")
 	for i, body := range viabodys {
 		if i == 0 {
-			host, port, err := parseHostAndPort(body)
+			addr, port, err := parseAddrAndPort(body)
 			if err == nil {
-				via.Host = host
+				via.Addr = addr
 				via.Port = port
 			}
 			continue
@@ -118,11 +116,11 @@ func (ViaHeader) Parse(data string) (Header, error) {
 	return via, nil
 }
 
-func parseHostAndPort(rawText string) (string, types.Port, error) {
+func parseAddrAndPort(rawText string) (string, uint16, error) {
 	var (
 		host    string
 		portStr string
-		port    types.Port
+		port    uint16
 	)
 	if i := strings.Index(rawText, ":"); i == -1 {
 		host = rawText
@@ -133,7 +131,7 @@ func parseHostAndPort(rawText string) (string, types.Port, error) {
 
 	if portStr != "" {
 		p, _ := strconv.ParseUint(portStr, 10, 64)
-		port = types.Port(p)
+		port = uint16(p)
 	}
 	return host, port, nil
 }

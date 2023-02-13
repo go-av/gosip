@@ -39,34 +39,34 @@ func (dl *callInDialog) run(mgr manager) {
 			switch state {
 			case Ringing:
 				resp := message.NewResponse(dl.invite, 180, "Ringing")
-				resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
-				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), dl.client.Transport(), nil))
-				err := dl.client.Send(dl.client.Address(), resp)
+				resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().String())))
+				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), dl.client.Protocol(), nil))
+				err := dl.client.Send(dl.client.Address().String(), resp)
 				if err != nil {
 					logrus.Error(err)
 				}
 			case Answered:
 				resp := message.NewResponse(dl.invite, 200, "Ok")
-				resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
-				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), dl.client.Transport(), nil))
+				resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().String())))
+				resp.SetHeader(message.NewContactHeader("", dl.invite.(message.Request).Recipient(), dl.client.Protocol(), nil))
 				resp.SetBody(dl.client.SDP(dl.sdp))
-				err := dl.client.Send(dl.client.Address(), resp)
+				err := dl.client.Send(dl.client.Address().String(), resp)
 				if err != nil {
 					logrus.Error(err)
 				}
 
 			case Missed:
 				resp := message.NewResponse(dl.invite, 480, "Missed")
-				err := dl.client.Send(dl.client.Address(), resp)
+				err := dl.client.Send(dl.client.Address().String(), resp)
 				if err != nil {
 					logrus.Error(err)
 				}
 			case Hangup:
 				con, _ := dl.invite.Contact()
-				byeReq := message.NewRequestMessage(strings.ToUpper(dl.client.Transport()), method.BYE, con.Address)
+				byeReq := message.NewRequestMessage(strings.ToUpper(dl.client.Protocol()), method.BYE, con.Address)
 				message.CopyHeaders(dl.invite, byeReq, "Call-ID", "Via", "From", "To", "Max-Forwards")
 				byeReq.SetHeader(message.NewCSeqHeader(1, method.BYE))
-				err := dl.client.Send(dl.client.Address(), byeReq)
+				err := dl.client.Send(dl.client.Address().String(), byeReq)
 				if err != nil {
 					logrus.Error(err)
 				}
@@ -78,22 +78,22 @@ func (dl *callInDialog) run(mgr manager) {
 				switch req.Method() {
 				case method.INVITE:
 					resp := message.NewResponse(msg, 100, "Trying")
-					resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().Host)))
+					resp.SetHeader(message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.client.Address().String())))
 					resp.DelHeader("Contact")
-					err := dl.client.Send(dl.client.Address(), resp)
+					err := dl.client.Send(dl.client.Address().String(), resp)
 					if err != nil {
 						logrus.Error(err)
 					}
 				case method.ACK:
 					resp := message.NewResponse(msg, 200, "ok")
-					err := dl.client.Send(dl.client.Address(), resp)
+					err := dl.client.Send(dl.client.Address().String(), resp)
 					if err != nil {
 						logrus.Error(err)
 					}
 					dl.fromstate <- Answered
 				case method.BYE:
 					resp := message.NewResponse(msg, 200, "ok")
-					err := dl.client.Send(dl.client.Address(), resp)
+					err := dl.client.Send(dl.client.Address().String(), resp)
 					if err != nil {
 						logrus.Error(err)
 					}

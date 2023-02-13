@@ -1,12 +1,14 @@
 package transport
 
-import "github.com/go-av/gosip/pkg/message"
+import (
+	"github.com/go-av/gosip/pkg/message"
+)
 
 type ListeningPoint interface {
-	Build(host string, port int) error
+	Build(addr string) error
 	Start()
 	SetTransportChannel(channel chan message.Message)
-	Send(host string, port string, msg message.Message) error
+	Send(address string, msg message.Message) error
 }
 
 type Listener interface {

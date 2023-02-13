@@ -1,6 +1,7 @@
 package dialog
 
 import (
+	"net/netip"
 	"sync"
 	"time"
 
@@ -24,9 +25,9 @@ type Dialog interface {
 
 type Client interface {
 	User() string
-	Send(address *message.Address, msg message.Message) error
-	Address() *message.Address
-	Transport() string
+	Send(address string, msg message.Message) error
+	Address() netip.AddrPort
+	Protocol() string
 	SDP(*sdp.SDP) *sdp.SDP
 }
 

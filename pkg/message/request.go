@@ -3,6 +3,7 @@ package message
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/go-av/gosip/pkg/method"
 )
@@ -14,6 +15,7 @@ type Request interface {
 }
 
 func NewRequestMessage(transport string, method method.Method, recipient *Address) Message {
+	transport = strings.ToUpper(transport)
 	req := new(request)
 	req.headers = &headers{
 		headers: map[string][]Header{},

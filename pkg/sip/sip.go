@@ -2,8 +2,9 @@ package sip
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"strings"
+	"sync"
 
 	_ "github.com/go-av/gosip/pkg/log"
 	"github.com/go-av/gosip/pkg/message"
@@ -14,6 +15,7 @@ import (
 func NewSipStack(name string) *SipStack {
 	stack := new(SipStack)
 	stack.name = name
+	stack.ListeningPoints = &sync.Map{}
 	stack.transportChannel = make(chan message.Message, 100)
 	return stack
 }
@@ -22,18 +24,25 @@ type SipStack struct {
 	ctx  context.Context
 	name string
 
-	ListeningPoints  []transport.ListeningPoint
+	ListeningPoints  *sync.Map
 	transportChannel chan message.Message
 	listener         transport.Listener
 
 	funcMap map[method.Method]func(message.Message)
 }
 
-func (stack *SipStack) CreateListenPoint(protocol string, host string, port int) transport.ListeningPoint {
-	listenpoint := transport.NewTransportListenPoint(protocol, host, port)
+func (stack *SipStack) CreateListenPoint(protocol string, addr string) (transport.ListeningPoint, error) {
+	protocol = strings.ToLower(protocol)
+	if _, ok := stack.ListeningPoints.Load(protocol); ok {
+		return nil, fmt.Errorf("%s listen point is exist", protocol)
+	}
+	listenpoint, err := transport.NewTransportListenPoint(protocol, addr)
+	if err != nil {
+		return nil, err
+	}
 	listenpoint.SetTransportChannel(stack.transportChannel)
-	stack.ListeningPoints = append(stack.ListeningPoints, listenpoint)
-	return listenpoint
+	stack.ListeningPoints.Store(protocol, listenpoint)
+	return listenpoint, nil
 }
 
 func (stack *SipStack) SetListener(listener transport.Listener) {
@@ -45,10 +54,14 @@ func (stack *SipStack) SetFuncHandler(method method.Method, handler func(message
 }
 
 func (stack *SipStack) Start(ctx context.Context) {
-	defer fmt.Println("SipStack  close")
-	for _, listeningPoint := range stack.ListeningPoints {
-		go listeningPoint.Start()
-	}
+	defer fmt.Println("sip stack  close")
+	stack.ListeningPoints.Range(func(key, value any) bool {
+		if lp, ok := value.(transport.ListeningPoint); ok {
+			go lp.Start()
+		}
+		return true
+	})
+
 	stack.ctx = ctx
 	for {
 		select {
@@ -69,17 +82,18 @@ func (stack *SipStack) Start(ctx context.Context) {
 				if m, ok := msg.CSeq(); ok {
 					if f, ok := stack.funcMap[m.Method]; ok {
 						go f(msg)
+						continue
 					}
 				}
 			}
-
 		}
 	}
 }
 
-func (stack *SipStack) Send(address *message.Address, msg message.Message) error {
-	if len(stack.ListeningPoints) > 0 {
-		return stack.ListeningPoints[0].Send(address.Host, address.Port.String(), msg)
+func (stack *SipStack) Send(protocol string, address string, msg message.Message) error {
+	protocol = strings.ToLower(protocol)
+	if lp, ok := stack.ListeningPoints.Load(protocol); ok {
+		return lp.(transport.ListeningPoint).Send(address, msg)
 	}
-	return errors.New("not found Listening Point")
+	return fmt.Errorf("not found %s listening point", protocol)
 }
