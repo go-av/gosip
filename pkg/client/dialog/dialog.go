@@ -1,13 +1,13 @@
 package dialog
 
 import (
-	"net/netip"
 	"sync"
 	"time"
 
 	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/method"
 	"github.com/go-av/gosip/pkg/sdp"
+	"github.com/go-av/gosip/pkg/utils"
 )
 
 type Dialog interface {
@@ -26,7 +26,7 @@ type Dialog interface {
 type Client interface {
 	User() string
 	Send(address string, msg message.Message) error
-	Address() netip.AddrPort
+	Address() *utils.HostAndPort
 	Protocol() string
 	SDP(*sdp.SDP) *sdp.SDP
 }

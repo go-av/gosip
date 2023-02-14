@@ -15,7 +15,7 @@ import (
 func main() {
 	localIP := utils.LocalIp()
 	protocol := flag.String("protocol", "udp", "protocol:[udp , tcp],default=udp")
-	localAddr := flag.String("local-addr", fmt.Sprintf("%s:5060", localIP), "SIP IP")
+	localAddr := flag.String("local-addr", fmt.Sprintf("%s:5060", localIP), "SIP 本地监听地址")
 	serverAddr := flag.String("server-addr", "172.20.50.12:5060", "SIP 服务端地址")
 
 	flag.Parse()

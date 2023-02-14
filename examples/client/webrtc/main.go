@@ -12,11 +12,11 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/go-av/gosip/examples/webrtc/controller"
+	"github.com/go-av/gosip/examples/client/webrtc/controller"
 	"github.com/go-av/gosip/pkg/client"
 	"github.com/go-av/gosip/pkg/client/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
-	"github.com/go-av/gosip/pkg/types"
+	"github.com/go-av/gosip/pkg/utils"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 	"github.com/sirupsen/logrus"
@@ -68,37 +68,51 @@ var sipClient *client.Client
 var streamMgr *controller.StreamMgr
 
 func main() {
-	httpAddress := flag.String("httpAddress", ":80", "Address to host the HTTP server on.")
-	localAddress := flag.String("localSIPAddress", controller.ResolveLocalIP().String(), "sip udp address")
-	loadlPort := flag.Int("localSIPPort", 5060, "sip udp port")
-	mediaPort := flag.Int("mediaPort", 50000, "media port")
 
+	localIP := utils.LocalIp()
+	localIP = "172.20.30.57"
+	protocol := flag.String("protocol", "udp", "protocol:[udp , tcp],default=udp")
+	localAddr := flag.String("local-addr", fmt.Sprintf("%s:5060", localIP), "SIP 本地监听地址")
+	serverAddr := flag.String("server-addr", "172.20.50.12:5060", "SIP 服务端地址")
+	httpAddress := flag.String("http-addr", ":80", "HTTP 服务地址")
+	mediaPort := flag.Int("mediaPort", 50000, "媒体端口")
 	userName := flag.String("userName", "snail", "用户名")
 	displayName := flag.String("displayName", "snail", "显示名")
-	password := flag.String("password", "admin", "admin")
-
-	sipServerAddress := flag.String("sipServerAddress", "172.20.50.12", "sip server address")
-	sipServerPort := flag.Int("sipServerPort", 5060, "sip server port")
-
+	password := flag.String("password", "admin", "密码")
 	flag.Parse()
-
-	sipClient = client.NewClient(*userName, *displayName, *password, "udp", *localAddress, types.Port(*loadlPort))
+	var err error
+	sipClient, err = client.NewClient(*userName, *displayName, *password, *protocol, *localAddr)
+	if err != nil {
+		panic(err)
+	}
 	sipClient.SetSDP(func(*sdp.SDP) *sdp.SDP {
 		sdpTmp := `v=0
 o=- 1661500261 1 IN IP4 {{.ip}}
-s=gosip 1.0.0
+s=ps
 c=IN IP4 {{.ip}}
 t=0 0
-m=audio {{.port}} RTP/AVP 111 0 8
+m=audio {{.mediaPort1}} RTP/AVP 111 0 8
 a=rtpmap:111 opus/48000/2
-a=fmtp:111 minptime=10;useinbandfec=1
 a=rtpmap:0 PCMU/8000
 a=rtpmap:8 PCMA/8000
 a=mid:audio
 a=sendrecv
-m=video {{.port}} RTP/AVP 96 97
+m=video {{.mediaPort2}} RTP/AVP 96 97 102 122 127 121 125 107 120
 a=rtpmap:96 VP8/90000
-a=rtpmap:97 H264/90000
+a=rtpmap:97 VP8/90000
+a=rtpmap:102 H264/90000
+a=fmtp:102 profile-level-id=42801F
+a=rtpmap:122 H264/90000
+a=fmtp:122 profile-level-id=42801F
+a=rtpmap:127 H264/90000
+a=fmtp:127 profile-level-id=42801F
+a=rtpmap:121 H264/90000
+a=fmtp:121 profile-level-id=42801F
+a=rtpmap:125 H264/90000
+a=fmtp:125 profile-level-id=42801F
+a=rtpmap:107 H264/90000
+a=fmtp:107 profile-level-id=42801F
+a=rtpmap:120 VP8/90000
 a=mid:video
 a=sendrecv
 `
@@ -109,8 +123,9 @@ a=sendrecv
 		}
 		buf := bytes.NewBuffer(nil)
 		if err := tmpl.Execute(buf, map[string]any{
-			"ip":   *localAddress,
-			"port": *mediaPort,
+			"ip":         localIP,
+			"mediaPort1": *mediaPort,
+			"mediaPort2": *mediaPort,
 		}); err != nil {
 			panic(err)
 		}
@@ -120,17 +135,20 @@ a=sendrecv
 		return sd
 	})
 
-	streamMgr = controller.NewStreamMgr(*localAddress, *mediaPort)
+	streamMgr = controller.NewStreamMgr(localIP, *mediaPort)
 
 	ctx, _ := context.WithCancel(context.Background())
-	sipClient.Start(ctx, *sipServerAddress, *sipServerPort)
+	err = sipClient.Start(ctx, *serverAddr)
+	if err != nil {
+		panic(err)
+	}
 
 	logrus.Println("Listening on", *httpAddress)
 
 	http.Handle("/web/", http.StripPrefix("/web/", http.FileServer(http.Dir("views"))))
 	http.HandleFunc("/call", call)
 
-	err := http.ListenAndServe(*httpAddress, nil)
+	err = http.ListenAndServe(*httpAddress, nil)
 	if err != nil {
 		logrus.Error("Failed to serve: %v", err)
 		return
@@ -215,7 +233,7 @@ func do(ctx context.Context, w http.ResponseWriter, udpConns map[string]*udpConn
 	peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
-				URLs: []string{"stun:stun.l.google.com:19302"},
+				URLs: []string{"stun:172.20.50.12:3478"},
 			},
 		},
 	})
@@ -234,12 +252,12 @@ func do(ctx context.Context, w http.ResponseWriter, udpConns map[string]*udpConn
 		fmt.Println("OnTrack", track.Kind().String())
 		c, ok := udpConns[track.Kind().String()]
 		if !ok {
+			fmt.Println("on track.Kind().String() ", track.Kind().String())
 			return
 		}
 
 		go func() {
-			ticker := time.NewTicker(time.Second * 2)
-			for range ticker.C {
+			for {
 				if rtcpErr := peerConnection.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: uint32(track.SSRC())}}); rtcpErr != nil {
 					fmt.Println(rtcpErr)
 				}

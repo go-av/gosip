@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/netip"
 	"strconv"
 	"time"
 
@@ -30,8 +29,8 @@ type Client struct {
 
 	stack *sip.SipStack
 
-	localAddr  netip.AddrPort
-	serverAddr netip.AddrPort
+	localAddr  *utils.HostAndPort
+	serverAddr *utils.HostAndPort
 	// address       *message.Address // 客户端的地址及端口
 	// serverAddrees *message.Address // 服务器地址
 	protocol  string // 传输协议  UDP or TCP
@@ -42,7 +41,7 @@ type Client struct {
 }
 
 func NewClient(displayName string, user string, password string, protocol string, address string) (*Client, error) {
-	addrPort, err := netip.ParseAddrPort(address)
+	addr, err := utils.ParseHostAndPort(address)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +52,7 @@ func NewClient(displayName string, user string, password string, protocol string
 		password:    password,
 		stack:       sip.NewSipStack(user),
 		protocol:    protocol,
-		localAddr:   addrPort,
+		localAddr:   addr,
 		dialogs:     make(chan dialog.Dialog, 10),
 	}
 	client.dialogMgr = dialog.NewDialogManger(client)
@@ -61,19 +60,18 @@ func NewClient(displayName string, user string, password string, protocol string
 }
 
 func (client *Client) Start(ctx context.Context, address string) error {
-	addrPort, err := netip.ParseAddrPort(address)
+	addr, err := utils.ParseHostAndPort(address)
 	if err != nil {
 		return err
 	}
-
-	client.serverAddr = addrPort
-
+	client.serverAddr = addr
 	_, err = client.stack.CreateListenPoint(client.protocol, client.localAddr.String())
 	if err != nil {
 		return err
 	}
 	client.stack.SetListener(client)
 	ctx, cancelFunc := context.WithCancel(ctx)
+	fmt.Println("xxx")
 
 	client.ctx = ctx
 	client.cancelFunc = cancelFunc
@@ -113,11 +111,7 @@ func (client *Client) Protocol() string {
 
 // 暂时未做认证
 func (client *Client) registrar(expire int, resp message.Response) error {
-	msg := message.NewRequestMessage(client.protocol, method.REGISTER, &message.Address{
-		User: client.user,
-		Addr: client.serverAddr.Addr().String(),
-		Port: client.serverAddr.Port(),
-	})
+	msg := message.NewRequestMessage(client.protocol, method.REGISTER, message.NewAddress(client.user, client.serverAddr.Host, client.serverAddr.Port))
 
 	contactParam := message.NewParams()
 	if expire >= 0 {
@@ -125,16 +119,16 @@ func (client *Client) registrar(expire int, resp message.Response) error {
 		msg.AppendHeader(message.NewExpiresHeader(expire))
 	}
 
-	clientAddr := message.NewAddress(client.user, client.localAddr.Addr().String(), client.localAddr.Port())
+	localAddr := message.NewAddress(client.user, client.localAddr.Host, client.localAddr.Port)
 	msg.AppendHeader(
-		message.NewViaHeader(client.protocol, client.localAddr.Addr().String(), client.localAddr.Port(), message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
+		message.NewViaHeader(client.protocol, client.localAddr.Host, client.localAddr.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		message.NewAllowHeader(),
 		message.NewCSeqHeader(1, method.REGISTER),
-		message.NewFromHeader(client.displayName, clientAddr, message.NewParams().Set("tag", utils.RandString(20))),
-		message.NewToHeader(client.displayName, clientAddr, nil),
+		message.NewFromHeader(client.displayName, localAddr, message.NewParams().Set("tag", utils.RandString(20))),
+		message.NewToHeader(client.displayName, localAddr, nil),
 		message.NewCallIDHeader(utils.RandString(20)),
 		message.NewMaxForwardsHeader(70),
-		message.NewContactHeader(client.displayName, clientAddr, client.protocol, contactParam),
+		message.NewContactHeader(client.displayName, localAddr, client.protocol, contactParam),
 		message.NewSupportedHeader([]string{"replaces", "outbound", "gruu"}),
 	)
 
@@ -226,17 +220,17 @@ func (client *Client) Call(user string) (dialog.Dialog, error) {
 	}
 	callID := utils.RandString(30)
 
-	msg := message.NewRequestMessage(client.protocol, method.INVITE, message.NewAddress(user, client.serverAddr.Addr().String(), 0))
+	msg := message.NewRequestMessage(client.protocol, method.INVITE, message.NewAddress(user, client.serverAddr.Host, 0))
 
 	msg.AppendHeader(
-		message.NewViaHeader(client.protocol, client.localAddr.Addr().String(), client.localAddr.Port(), message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
+		message.NewViaHeader(client.protocol, client.localAddr.Host, client.localAddr.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		message.NewAllowHeader(),
 		message.NewCSeqHeader(1, method.INVITE),
-		message.NewFromHeader(client.displayName, message.NewAddress(client.user, client.serverAddr.Addr().String(), 0), message.NewParams().Set("tag", utils.RandString(20))),
-		message.NewToHeader("", message.NewAddress(user, client.serverAddr.Addr().String(), 0), nil),
+		message.NewFromHeader(client.displayName, message.NewAddress(client.user, client.serverAddr.Host, 0), message.NewParams().Set("tag", utils.RandString(20))),
+		message.NewToHeader("", message.NewAddress(user, client.serverAddr.Host, 0), nil),
 		message.NewCallIDHeader(callID),
 		message.NewMaxForwardsHeader(70),
-		message.NewContactHeader(client.displayName, message.NewAddress(user, client.localAddr.Addr().String(), client.localAddr.Port()), client.protocol, message.NewParams().Set("expires", "3600")),
+		message.NewContactHeader(client.displayName, message.NewAddress(user, client.localAddr.Host, client.localAddr.Port), client.protocol, message.NewParams().Set("expires", "3600")),
 		message.NewAllowEventHeader("talk"),
 	)
 
@@ -255,7 +249,7 @@ func (client *Client) Send(address string, msg message.Message) error {
 	return client.stack.Send(client.protocol, address, msg)
 }
 
-func (client *Client) Address() netip.AddrPort {
+func (client *Client) Address() *utils.HostAndPort {
 	return client.localAddr
 }
 

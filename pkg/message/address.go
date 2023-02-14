@@ -7,10 +7,10 @@ import (
 	"strings"
 )
 
-func NewAddress(user string, addr string, port uint16) *Address {
+func NewAddress(user string, host string, port uint16) *Address {
 	return &Address{
 		User: user,
-		Addr: addr,
+		Host: host,
 		Port: port,
 	}
 }
@@ -18,7 +18,7 @@ func NewAddress(user string, addr string, port uint16) *Address {
 type Address struct {
 	Encrypted bool
 	User      string
-	Addr      string
+	Host      string
 	Port      uint16
 }
 
@@ -33,7 +33,7 @@ func (s *Address) String() string {
 	}
 	buf.WriteString(s.User)
 	buf.WriteString("@")
-	buf.WriteString(s.Addr)
+	buf.WriteString(s.Host)
 	if s.Port > 0 {
 		buf.WriteString(":" + strconv.FormatUint(uint64(s.Port), 10))
 	}
@@ -44,9 +44,14 @@ func (address *Address) Clone() *Address {
 	return &Address{
 		Encrypted: address.Encrypted,
 		User:      address.User,
-		Addr:      address.Addr,
+		Host:      address.Host,
 		Port:      address.Port,
 	}
+}
+
+func (address *Address) SetUser(user string) *Address {
+	address.User = user
+	return address
 }
 
 func ParseAddressAndParam(text string) (display string, address *Address, param *Params, err error) {
@@ -108,11 +113,11 @@ func ParamAddress(text string) (display string, address *Address, err error) {
 		text = text[i+1:]
 	}
 	if n := strings.Index(text, ":"); n > 0 {
-		address.Addr = text[:n]
+		address.Host = text[:n]
 		port, _ := strconv.ParseUint(text[n+1:], 10, 64)
 		address.Port = uint16(port)
 	} else {
-		address.Addr = text
+		address.Host = text
 	}
 
 	return
