@@ -71,8 +71,6 @@ func (client *Client) Start(ctx context.Context, address string) error {
 	}
 	client.stack.SetListener(client)
 	ctx, cancelFunc := context.WithCancel(ctx)
-	fmt.Println("xxx")
-
 	client.ctx = ctx
 	client.cancelFunc = cancelFunc
 	go client.stack.Start(ctx)
@@ -135,7 +133,7 @@ func (client *Client) registrar(expire int, resp message.Response) error {
 	if resp != nil {
 		authHeader, ok := resp.WWWAuthenticate()
 		if ok {
-			msg.AppendHeader(authHeader.Auth(client.user, client.password, client.serverAddr.String()))
+			msg.SetHeader(authHeader.Auth(client.user, client.password, "sip:"+client.serverAddr.Host))
 		}
 
 		if cseq, ok := resp.CSeq(); ok {
@@ -234,7 +232,8 @@ func (client *Client) Call(user string) (dialog.Dialog, error) {
 		message.NewAllowEventHeader("talk"),
 	)
 
-	msg.SetBody(client.sdp(nil))
+	body := client.sdp(nil)
+	msg.SetBody(body.ContentType(), body.Body())
 	err := client.stack.Send(client.protocol, client.serverAddr.String(), msg)
 	if err != nil {
 		fmt.Println(err)

@@ -27,7 +27,14 @@ func (ut *UDPTransport) Read() (message.Message, error) {
 	}
 	// logrus.Debugf("%s --> %s    %s", addr.String(), ut.address.String(), string(buffer[:n]))
 	fmt.Println("[GOSIP][UDP]", time.Now().Format(time.RFC3339), addr.String(), "  -> ", ut.address.String(), "\n", string(buffer[:n]))
-	return message.Parse(buffer[:n])
+	msg, err := message.Parse(buffer[:n])
+	if err != nil {
+		return nil, err
+	}
+	if req, ok := msg.(message.Request); ok {
+		req.SetRequestFrom("udp", addr.String())
+	}
+	return msg, nil
 }
 
 func (ut *UDPTransport) GetHost() string {

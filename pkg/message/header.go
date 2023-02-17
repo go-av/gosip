@@ -199,6 +199,18 @@ func (hs *headers) WWWAuthenticate() (*WWWAuthenticateHeader, bool) {
 	return auth, true
 }
 
+func (hs *headers) Authorization() (*AuthorizationHeader, bool) {
+	vals := hs.GetHeaders("Authorization")
+	if vals == nil {
+		return nil, false
+	}
+	auth, ok := vals[0].(*AuthorizationHeader)
+	if !ok {
+		return nil, false
+	}
+	return auth, true
+}
+
 func (hs *headers) ContentLength() (*ContentLengthHeader, bool) {
 	vals := hs.GetHeaders("Content-Length")
 	if vals == nil {
@@ -233,4 +245,16 @@ func (hs *headers) Contact() (*ContactHeader, bool) {
 		return nil, false
 	}
 	return contactHeader, true
+}
+
+func (hs *headers) Expires() (*ExpiresHeader, bool) {
+	vals := hs.GetHeaders("Expires")
+	if vals == nil {
+		return nil, false
+	}
+	expiresHeader, ok := vals[0].(*ExpiresHeader)
+	if !ok {
+		return nil, false
+	}
+	return expiresHeader, true
 }

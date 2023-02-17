@@ -13,30 +13,15 @@ import (
 	"github.com/go-av/gosip/pkg/utils"
 )
 
-type Authorization struct {
-	realm     string
-	nonce     string
-	algorithm string
-	username  string
-	password  string
-	uri       string
-	response  string
-	method    string
-	qop       string
-	nc        string
-	cnonce    string
-	opaque    string
-	other     map[string]string
-}
-
-func Parse(value string) *Authorization {
+func Parse(str string) *Authorization {
 	auth := &Authorization{
 		algorithm: "MD5",
 		other:     make(map[string]string),
 	}
 
-	re := regexp.MustCompile(`([\w]+)="([^"]+)"`)
-	matches := re.FindAllStringSubmatch(value, -1)
+	re := regexp.MustCompile(`([\w]+)="?([^",]+)"?`)
+	matches := re.FindAllStringSubmatch(str, -1)
+
 	for _, match := range matches {
 		switch match[1] {
 		case "realm":
@@ -71,6 +56,31 @@ func Parse(value string) *Authorization {
 	}
 
 	return auth
+}
+
+func NewAuthorization(realm string, nonce string) Authorization {
+	return Authorization{
+		qop:       "auth",
+		algorithm: "MD5",
+		realm:     realm,
+		nonce:     nonce,
+	}
+}
+
+type Authorization struct {
+	realm     string
+	nonce     string
+	algorithm string
+	username  string
+	password  string
+	uri       string
+	response  string
+	method    string
+	qop       string
+	nc        string
+	cnonce    string
+	opaque    string
+	other     map[string]string
 }
 
 func (auth *Authorization) Realm() string {
@@ -110,6 +120,10 @@ func (auth *Authorization) Uri() string {
 func (auth *Authorization) SetUri(uri string) *Authorization {
 	auth.uri = uri
 	return auth
+}
+
+func (auth *Authorization) Method() string {
+	return auth.method
 }
 
 func (auth *Authorization) SetMethod(method string) *Authorization {
@@ -164,6 +178,10 @@ func (auth *Authorization) String() string {
 		str += fmt.Sprintf(`,nonce="%s"`, auth.nonce)
 	}
 
+	if auth.qop != "" {
+		str += fmt.Sprintf(`,qop="%s"`, auth.qop)
+	}
+
 	if auth.username != "" {
 		str += fmt.Sprintf(`,username="%s"`, auth.username)
 	}
@@ -174,10 +192,6 @@ func (auth *Authorization) String() string {
 
 	if auth.response != "" {
 		str += fmt.Sprintf(`,response="%s"`, auth.response)
-	}
-
-	if auth.qop != "" {
-		str += fmt.Sprintf(`,qop="%s"`, auth.qop)
 	}
 
 	if auth.nc != "" {

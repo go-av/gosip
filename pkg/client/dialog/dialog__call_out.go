@@ -62,9 +62,16 @@ func (dl *callOutDialog) run(mgr manager) {
 					switch cseq.Method {
 
 					case method.INVITE:
-						if sd, ok := resp.Body().(*sdp.SDP); ok {
-							dl.sdp = sd
+						if contentTypeHeader, ok := resp.ContentType(); ok && resp.Body() != nil {
+							switch contentTypeHeader.Value() {
+							case "application/sdp":
+								sd, err := sdp.ParseSDP(resp.Body())
+								if err == nil {
+									dl.sdp = sd
+								}
+							}
 						}
+
 						dl.timer.Stop()
 						con, _ := resp.Contact()
 						newResp := message.NewRequestMessage("UDP", method.ACK, con.Address)

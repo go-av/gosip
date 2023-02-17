@@ -6,7 +6,7 @@ import (
 	"github.com/pion/sdp/v3"
 )
 
-func ParseSDP(str string) (*SDP, error) {
+func ParseSDP(str []byte) (*SDP, error) {
 	sd := &SDP{}
 	err := sd.Unmarshal([]byte(str))
 	if err != nil {
@@ -25,13 +25,13 @@ func (SDP) ContentType() string {
 	return "application/sdp"
 }
 
-func (sd *SDP) Body() string {
+func (sd *SDP) Body() []byte {
 	data, err := (*sdp.SessionDescription)(sd).Marshal()
 	if err != nil {
 		fmt.Println("errr", err)
-		return ""
+		return nil
 	}
-	return string(data)
+	return data
 }
 
 func (sd *SDP) Marshal() string {

@@ -1,25 +1,25 @@
 package message
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/go-av/gosip/pkg/method"
-	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/sirupsen/logrus"
 )
 
 func Parse(src []byte) (Message, error) {
 	var msg Message
-	var body string
-	bodysplit := strings.Split(string(src), "\r\n\r\n")
+	var body []byte
+	bodysplit := bytes.Split(src, []byte("\r\n\r\n"))
 	if len(bodysplit) > 1 {
 		body = bodysplit[1]
 	}
 
-	lines := strings.Split(bodysplit[0], "\r\n")
+	lines := strings.Split(string(bodysplit[0]), "\r\n")
 	if len(lines) == 0 {
 		return nil, errors.New("src is not message")
 	}
@@ -67,15 +67,7 @@ func Parse(src []byte) (Message, error) {
 	}
 
 	if contentType, ok := msg.ContentType(); ok {
-		sdp := &sdp.SDP{}
-		switch contentType.Value() {
-		case sdp.ContentType():
-			if err := sdp.Unmarshal([]byte(body)); err == nil {
-				msg.SetBody(sdp)
-			} else {
-				logrus.Errorf("sdp.Unmarshal err:%s", err)
-			}
-		}
+		msg.SetBody(contentType.Value(), body)
 	}
 
 	return msg, nil

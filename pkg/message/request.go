@@ -12,6 +12,8 @@ type Request interface {
 	Message
 	Method() method.Method
 	Recipient() *Address
+	SetRequestFrom(protocol string, address string)
+	RequestFrom() (protocol string, address string)
 }
 
 func NewRequestMessage(transport string, method method.Method, recipient *Address) Message {
@@ -27,7 +29,6 @@ func NewRequestMessage(transport string, method method.Method, recipient *Addres
 	// req.body = body
 
 	req.SetHeader(NewUserAgentHeader(userAgent))
-
 	return req
 }
 
@@ -36,6 +37,8 @@ type request struct {
 	transport string
 	method    method.Method
 	recipient *Address
+	protocol  string
+	address   string
 }
 
 func (req *request) StartLine() string {
@@ -59,4 +62,13 @@ func (req *request) Method() method.Method {
 
 func (req *request) Recipient() *Address {
 	return req.recipient
+}
+
+func (req *request) SetRequestFrom(protocol string, address string) {
+	req.protocol = protocol
+	req.address = address
+}
+
+func (req *request) RequestFrom() (string, string) {
+	return req.protocol, req.address
 }

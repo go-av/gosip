@@ -24,7 +24,7 @@ import (
 func main() {
 	localIP := utils.LocalIp()
 	protocol := flag.String("protocol", "udp", "protocol:[udp , tcp],default=udp")
-	localAddr := flag.String("local-addr", fmt.Sprintf("%s:5060", localIP), "SIP 本地监听地址")
+	localAddr := flag.String("local-addr", fmt.Sprintf("%s:5062", localIP), "SIP 本地监听地址")
 	serverAddr := flag.String("server-addr", "172.20.50.12:5060", "SIP 服务端地址")
 	to := flag.String("to", "snail_in", "call to user")
 	flag.Parse()
@@ -50,7 +50,7 @@ a=rtcp:50009
 a=rtpmap:96 VP8/90000
 a=sendrecv
 `
-		sd, err := sdp.ParseSDP(fmt.Sprintf(str, localIP, localIP, localIP))
+		sd, err := sdp.ParseSDP([]byte(fmt.Sprintf(str, localIP, localIP, localIP)))
 		if err != nil {
 			panic(err)
 		}
@@ -64,6 +64,8 @@ a=sendrecv
 	if err != nil {
 		panic(err)
 	}
+
+	time.Sleep(10 * time.Minute)
 
 	fmt.Println("呼叫", *to)
 	dl, err := client.Call(*to)

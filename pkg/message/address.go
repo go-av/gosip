@@ -104,6 +104,7 @@ func ParamAddress(text string) (display string, address *Address, err error) {
 	}
 	text = text[colonIdx+1:]
 	i = strings.Index(text, "@")
+
 	if i > 0 {
 		if n := strings.Index(text[:i], ":"); n > 0 {
 			address.User = text[:n]

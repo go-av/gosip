@@ -4,9 +4,9 @@ import (
 	"github.com/go-av/gosip/pkg/authentication"
 )
 
-func NewWWWAuthenticateHeader() *WWWAuthenticateHeader {
-	auth := &WWWAuthenticateHeader{}
-	return auth
+func NewWWWAuthenticateHeader(realm string, nonce string) *WWWAuthenticateHeader {
+	auth := WWWAuthenticateHeader(authentication.NewAuthorization(realm, nonce))
+	return &auth
 }
 
 type WWWAuthenticateHeader authentication.Authorization
@@ -30,7 +30,7 @@ func (auth WWWAuthenticateHeader) Auth(username string, password string, uri str
 }
 
 func init() {
-	defaultHeaderParsers.Register(NewWWWAuthenticateHeader())
+	defaultHeaderParsers.Register(&WWWAuthenticateHeader{})
 }
 
 func (WWWAuthenticateHeader) Parse(data string) (Header, error) {

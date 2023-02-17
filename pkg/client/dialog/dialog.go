@@ -97,8 +97,14 @@ func (mgr *DialogManger) HandleMessage(msg message.Message) Dialog {
 		user:        from.Address.User,
 	}
 
-	if sdp, ok := msg.Body().(*sdp.SDP); ok {
-		dl.sdp = sdp
+	if contentTypeHeader, ok := msg.ContentType(); ok && msg.Body() != nil {
+		switch contentTypeHeader.Name() {
+		case "application/sdp":
+			sd, err := sdp.ParseSDP(msg.Body())
+			if err == nil {
+				dl.sdp = sd
+			}
+		}
 	}
 
 	mgr.dialogs.Store(callID.Value(), dl)

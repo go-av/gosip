@@ -10,7 +10,7 @@ func NewExpiresHeader(expires int) *ExpiresHeader {
 	return &l
 }
 
-type ExpiresHeader uint
+type ExpiresHeader int64
 
 func (expires *ExpiresHeader) Name() string {
 	return "Expires"

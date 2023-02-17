@@ -15,7 +15,7 @@ import (
 func NewSipStack(name string) *SipStack {
 	stack := new(SipStack)
 	stack.name = name
-	stack.ListeningPoints = &sync.Map{}
+	stack.listeningPoints = &sync.Map{}
 	stack.transportChannel = make(chan message.Message, 100)
 	return stack
 }
@@ -24,7 +24,7 @@ type SipStack struct {
 	ctx  context.Context
 	name string
 
-	ListeningPoints  *sync.Map
+	listeningPoints  *sync.Map
 	transportChannel chan message.Message
 	listener         transport.Listener
 
@@ -33,7 +33,7 @@ type SipStack struct {
 
 func (stack *SipStack) CreateListenPoint(protocol string, addr string) (transport.ListeningPoint, error) {
 	protocol = strings.ToLower(protocol)
-	if _, ok := stack.ListeningPoints.Load(protocol); ok {
+	if _, ok := stack.listeningPoints.Load(protocol); ok {
 		return nil, fmt.Errorf("%s listen point is exist", protocol)
 	}
 	listenpoint, err := transport.NewTransportListenPoint(protocol, addr)
@@ -41,7 +41,7 @@ func (stack *SipStack) CreateListenPoint(protocol string, addr string) (transpor
 		return nil, err
 	}
 	listenpoint.SetTransportChannel(stack.transportChannel)
-	stack.ListeningPoints.Store(protocol, listenpoint)
+	stack.listeningPoints.Store(protocol, listenpoint)
 	return listenpoint, nil
 }
 
@@ -54,8 +54,14 @@ func (stack *SipStack) SetFuncHandler(method method.Method, handler func(message
 }
 
 func (stack *SipStack) Start(ctx context.Context) {
-	defer fmt.Println("sip stack  close")
-	stack.ListeningPoints.Range(func(key, value any) bool {
+	defer func() {
+		stack.listeningPoints.Range(func(key, value any) bool {
+			return true
+		})
+
+		fmt.Println("sip stack  stop")
+	}()
+	stack.listeningPoints.Range(func(key, value any) bool {
 		if lp, ok := value.(transport.ListeningPoint); ok {
 			go lp.Start()
 		}
@@ -92,7 +98,7 @@ func (stack *SipStack) Start(ctx context.Context) {
 
 func (stack *SipStack) Send(protocol string, address string, msg message.Message) error {
 	protocol = strings.ToLower(protocol)
-	if lp, ok := stack.ListeningPoints.Load(protocol); ok {
+	if lp, ok := stack.listeningPoints.Load(protocol); ok {
 		return lp.(transport.ListeningPoint).Send(address, msg)
 	}
 	return fmt.Errorf("not found %s listening point", protocol)

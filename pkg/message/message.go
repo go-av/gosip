@@ -6,16 +6,11 @@ import (
 	"sync"
 )
 
-type MessageBody interface {
-	Body() string
-	ContentType() string
-}
-
 type Message interface {
 	StartLine() string
 	String() string
-	SetBody(body MessageBody)
-	Body() MessageBody
+	Body() []byte
+	SetBody(contentType string, body []byte)
 	SetHeader(header Header)
 	AppendHeader(headers ...Header)
 	DelHeader(name string)
@@ -32,6 +27,8 @@ type Message interface {
 	ContentType() (*ContentTypeHeader, bool)
 	Contact() (*ContactHeader, bool)
 	WWWAuthenticate() (*WWWAuthenticateHeader, bool)
+	Authorization() (*AuthorizationHeader, bool)
+	Expires() (*ExpiresHeader, bool)
 	SetSrc([]byte)
 	Src() []byte
 }
@@ -39,9 +36,11 @@ type Message interface {
 type message struct {
 	*headers
 	mu        sync.RWMutex
-	body      MessageBody
 	startLine func() string
 	src       []byte
+
+	body        []byte
+	contentType string
 }
 
 func (msg *message) StartLine() string {
@@ -63,24 +62,20 @@ func (msg *message) String() string {
 		buf.WriteString("Content-Length: " + NewContentLengthHeader(0).Value() + "\r\n")
 		buf.WriteString("\r\n")
 	} else {
-		body := msg.body.Body()
-		buf.WriteString("Content-Length: " + NewContentLengthHeader(len(body)).Value() + "\r\n")
-		buf.WriteString("Content-Type: " + NewContentTypeHeader(msg.body.ContentType()).Value() + "\r\n")
-		buf.WriteString("\r\n" + body)
+		buf.WriteString("Content-Length: " + NewContentLengthHeader(len(msg.body)).Value() + "\r\n")
+		buf.WriteString("Content-Type: " + NewContentTypeHeader(msg.contentType).Value() + "\r\n")
+		buf.WriteString("\r\n")
+		buf.Write(msg.body)
 	}
 
 	return buf.String()
 }
 
-func (msg *message) Body() MessageBody {
-	msg.mu.RLock()
-	defer msg.mu.RUnlock()
+func (msg *message) Body() []byte {
 	return msg.body
 }
-
-func (msg *message) SetBody(body MessageBody) {
-	msg.mu.RLock()
-	defer msg.mu.RUnlock()
+func (msg *message) SetBody(contentType string, body []byte) {
+	msg.contentType = contentType
 	msg.body = body
 }
 

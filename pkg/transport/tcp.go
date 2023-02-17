@@ -37,6 +37,9 @@ func (tt *TCPTransport) readConn(conn net.Conn) error {
 			logrus.Error(err)
 		}
 		if msg != nil {
+			if req, ok := msg.(message.Request); ok {
+				req.SetRequestFrom("tcp", conn.RemoteAddr().String())
+			}
 			tt.transportChannel <- msg
 		}
 	}
@@ -59,6 +62,7 @@ func (tt *TCPTransport) Start() {
 	logrus.Info("Starting TCP Listening Point")
 	for {
 		tt.Read()
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
@@ -87,7 +91,7 @@ func (tt *TCPTransport) Send(address string, msg message.Message) error {
 	fmt.Println("[GOSIP][TCP]", time.Now().Format(time.RFC3339), tt.listener.Addr().String(), "-> ", address, "\n", msg.String())
 	conn, ok := tt.connTable.Load(address)
 	if !ok {
-		baseConn, err := reuse.Dial("udp", tt.listener.Addr().String(), address)
+		baseConn, err := reuse.Dial("tcp", tt.listener.Addr().String(), address)
 		if err != nil {
 			return err
 		}

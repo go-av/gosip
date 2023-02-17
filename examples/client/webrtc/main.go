@@ -131,7 +131,7 @@ a=sendrecv
 		}
 
 		fmt.Println(buf.String())
-		sd, _ := sdp.ParseSDP(buf.String())
+		sd, _ := sdp.ParseSDP(buf.Bytes())
 		return sd
 	})
 
