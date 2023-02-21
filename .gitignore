@@ -1,3 +1,5 @@
 .vscode
 .DS_Store
 *DS_Store
+/examples/server/server
+/examples/client/call_out/call_out

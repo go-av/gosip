@@ -17,8 +17,8 @@ import (
 )
 
 type response struct {
-	err     error
-	content Content
+	err  error
+	body message.Body
 }
 
 type server struct {
@@ -29,12 +29,12 @@ type server struct {
 
 	stack     *sip.SipStack
 	needauth  bool
-	handler   ServerHandler
+	handler   Handler
 	address   *message.Address
 	responses *sync.Map
 }
 
-func NewServer(handler ServerHandler) *server {
+func NewServer(handler Handler) *server {
 	s := &server{
 		needauth:  true,
 		handler:   handler,
@@ -44,22 +44,24 @@ func NewServer(handler ServerHandler) *server {
 	return s
 }
 
-func (s *server) ListenUDPServer(ctx context.Context, addr string, protocols []string) error {
+// monitorIP 监控ID，可指定监听IP，或设置为 0.0.0.0 为监听所有
+// ip 对外暴露的IP
+// port 监听端口
+func (s *server) ListenUDPServer(ctx context.Context, monitorIP string, ip string, port uint16, protocols []string) error {
+	if monitorIP == "" {
+		monitorIP = "0.0.0.0"
+	}
+	logrus.Infof("ListenUDPServer: %s(%s):%d", ip, monitorIP, port)
 	ctx, cancelFunc := context.WithCancel(ctx)
 	s.ctx = ctx
 	s.cancelFunc = cancelFunc
 	s.protocols = protocols
 
-	hostAndport, err := utils.ParseHostAndPort(addr)
-	if err != nil {
-		return err
-	}
+	s.address = message.NewAddress("", ip, port)
 
-	s.address = message.NewAddress("", hostAndport.Host, hostAndport.Port)
-
-	s.stack = sip.NewSipStack(addr)
+	s.stack = sip.NewSipStack(ip)
 	for _, protocol := range s.protocols {
-		_, err := s.stack.CreateListenPoint(protocol, addr)
+		_, err := s.stack.CreateListenPoint(protocol, fmt.Sprintf("%s:%d", monitorIP, port))
 		if err != nil {
 			logrus.Error(err)
 			return err
@@ -122,6 +124,7 @@ func (s *server) HandleRequests(req message.Request) {
 		if expires == 0 {
 			client.Logout() // 设备注销
 		}
+
 		resp := message.NewResponse(req, 200, "OK")
 		s.stack.Send(protocol, adddress, resp)
 		return
@@ -130,13 +133,25 @@ func (s *server) HandleRequests(req message.Request) {
 		if !ok {
 			return
 		}
-		statusCode, reason := s.handler.ReceiveMessage(NewContent(contentTypeHeader.Value(), req.Body()))
-		resp := message.NewResponse(req, message.StatusCode(statusCode), reason)
+		response, err := s.handler.ReceiveMessage(message.NewBody(contentTypeHeader.Value(), req.Body()))
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+
+		if response == nil || response.code == 0 {
+			return
+		}
+
+		resp := message.NewResponse(req, message.StatusCode(response.code), response.reason)
+		if response.body != nil {
+			resp.SetBody(string(response.contentType), response.body)
+		}
 		s.stack.Send(protocol, adddress, resp)
 	default:
-		fmt.Println("---------==========-----------")
-		fmt.Println("---------=====", req.Method(), "=====-----------")
-		fmt.Println("---------==========-----------")
+		fmt.Println("-----------==========-----------")
+		fmt.Println("---------", req.Method(), "-----------")
+		fmt.Println("-----------==========-----------")
 		resp := message.NewResponse(req, 200, "OK")
 		s.stack.Send(protocol, adddress, resp)
 	}
@@ -157,7 +172,7 @@ func (s *server) HandleResponses(resp message.Response) {
 					r.err = errors.New(resp.Reason())
 				}
 				if contentType, ok := resp.ContentType(); ok {
-					r.content = NewContent(contentType.Value(), resp.Body())
+					r.body = message.NewBody(contentType.Value(), resp.Body())
 				}
 				callback.(chan response) <- r
 			}
@@ -175,10 +190,12 @@ func (s *server) Send(protocol string, address string, msg message.Message) erro
 	return s.stack.Send(protocol, address, msg)
 }
 
-func (s *server) SendMessage(client Client, content Content) (Content, error) {
+func (s *server) SendMessage(client Client, content message.Body) (message.Body, error) {
 	callID := utils.RandString(30)
 	respChan := make(chan response, 1)
 	s.responses.Store(callID, respChan)
+	defer s.responses.Delete(callID)
+
 	protocol, address := client.Transport()
 	hostAndPort, _ := utils.ParseHostAndPort(address)
 	clientAddress := message.NewAddress(client.User(), hostAndPort.Host, hostAndPort.Port)
@@ -207,6 +224,6 @@ func (s *server) SendMessage(client Client, content Content) (Content, error) {
 		if resp.err != nil {
 			return nil, err
 		}
-		return resp.content, nil
+		return resp.body, nil
 	}
 }

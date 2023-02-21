@@ -6,7 +6,6 @@ type Client interface {
 	User() string
 	Password() string
 	SetAuth(bool) error
-	SetKeepalive() error
 	IsAuth() bool
 	Logout() error
 }
