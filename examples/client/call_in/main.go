@@ -45,7 +45,7 @@ c=IN IP4 %s
 a=rtcp:50009
 a=rtpmap:96 VP8/90000
 `
-		sd, err := sdp.ParseSDP(fmt.Sprintf(str, localIP, localIP, localIP))
+		sd, err := sdp.ParseSDP([]byte(fmt.Sprintf(str, localIP, localIP, localIP)))
 		if err != nil {
 			panic(err)
 		}

@@ -16,6 +16,7 @@ func NewAddress(user string, host string, port uint16) *Address {
 }
 
 type Address struct {
+	Domain    string
 	Encrypted bool
 	User      string
 	Host      string
@@ -33,15 +34,25 @@ func (s *Address) String() string {
 	}
 	buf.WriteString(s.User)
 	buf.WriteString("@")
-	buf.WriteString(s.Host)
-	if s.Port > 0 {
-		buf.WriteString(":" + strconv.FormatUint(uint64(s.Port), 10))
+	if s.Domain != "" {
+		buf.WriteString(s.Domain)
+	} else {
+		buf.WriteString(s.Host)
+		if s.Port > 0 {
+			buf.WriteString(":" + strconv.FormatUint(uint64(s.Port), 10))
+		}
 	}
 	return buf.String()
 }
 
+func (s *Address) WithDomain(domain string) *Address {
+	s.Domain = domain
+	return s
+}
+
 func (address *Address) Clone() *Address {
 	return &Address{
+		Domain:    address.Domain,
 		Encrypted: address.Encrypted,
 		User:      address.User,
 		Host:      address.Host,

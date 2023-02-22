@@ -15,7 +15,7 @@ func main() {
 	port := flag.Uint64("port", 25060, "监听端口")
 	flag.Parse()
 	ctx := context.Background()
-	s := controller.NewHandler("99999999")
+	s := controller.NewHandler("99920000002000000000", "99999999")
 	server := server.NewServer(s)
 	err := server.ListenUDPServer(ctx, "0.0.0.0", *ip, uint16(*port), []string{"udp", "tcp"})
 	if err != nil {

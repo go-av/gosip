@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/go-av/gosip/pkg/message"
+	"github.com/go-av/gosip/pkg/method"
 	"github.com/go-av/gosip/pkg/server"
 	"github.com/go-av/gosip/pkg/utils"
 )
@@ -12,13 +13,6 @@ import (
 type MessageReceive struct {
 	CmdType CmdType `xml:"CmdType"`
 	SN      int     `xml:"SN"`
-}
-
-type Query struct {
-	XMLName  xml.Name `xml:"Query"`
-	CmdType  CmdType  `xml:"CmdType"`
-	SN       int64    `xml:"SN"`
-	DeviceID string   `xml:"DeviceID"`
 }
 
 func NewGB28181(server server.Server, handler GB28181Handler) *GB28181 {
@@ -52,14 +46,35 @@ func (g *GB28181) Handler(body []byte) (*server.Response, error) {
 		return g.Keepalive(body)
 	case CmdType__DeviceInfo:
 		return g.DeviceInfo(body)
+	case CmdType__DeviceStatus:
+		return g.DeviceStatus(body)
+	case CmdType__PresetQuery:
+		return g.PresetQuery(body)
+	case CmdType__ConfigDownload:
+		return g.ConfigDownload(body)
 	}
+
 	return server.NewResponse(200, "success."), nil
 }
 
-func (g *GB28181) SendMessage(client server.Client, msg any) (message.Body, error) {
-	data, err := xml.MarshalIndent(msg, " ", "")
+func (g *GB28181) SendMessage(client server.Client, data any) (message.Body, error) {
+	content, err := xml.MarshalIndent(data, " ", "")
 	if err != nil {
 		return nil, err
 	}
-	return g.server.SendMessage(client, message.NewBody(string(message.ContentType__MANSCDP_XML), data))
+
+	protocol, address := client.Transport()
+
+	hostAndPort, _ := utils.ParseHostAndPort(address)
+	clientAddress := message.NewAddress(client.User(), hostAndPort.Host, hostAndPort.Port).WithDomain(g.handler.Realm())
+	msg := message.NewRequestMessage(protocol, method.MESSAGE, clientAddress)
+	msg.AppendHeader(
+		message.NewViaHeader(protocol, g.server.ServerAddress().Host, g.server.ServerAddress().Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
+		message.NewCSeqHeader(1, method.MESSAGE),
+		message.NewFromHeader("", g.server.ServerAddress().Clone().SetUser(g.handler.ServerSIPID()).WithDomain(g.handler.Realm()), message.NewParams().Set("tag", utils.RandString(20))),
+		message.NewToHeader("", clientAddress, nil),
+		message.NewMaxForwardsHeader(70),
+	)
+	msg.SetBody(string(message.ContentType__MANSCDP_XML), append([]byte("<?xml version=\"1.0\" encoding=\"GBK\"?>\r\n"), content...))
+	return g.server.SendMessage(client, msg.(message.Request))
 }

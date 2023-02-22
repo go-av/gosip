@@ -37,6 +37,7 @@ func Parse(src []byte) (Message, error) {
 		}
 		msg = NewResponse(nil, statusCode, statusDesc)
 	} else {
+		fmt.Println(string(src))
 		return nil, errors.New("failed to read start line ")
 	}
 

@@ -3,6 +3,7 @@ module github.com/go-av/gosip
 go 1.18
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/go-cmd/cmd v1.4.1
 	github.com/libp2p/go-reuseport v0.2.0
 	github.com/pion/rtcp v1.2.10
@@ -13,10 +14,10 @@ require (
 	github.com/stretchr/testify v1.7.1
 	github.com/youpy/go-wav v0.3.2
 	golang.org/x/net v0.0.0-20220630215102-69896b714898
+	golang.org/x/text v0.3.7
 )
 
 require (
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/pion/datachannel v1.5.2 // indirect
 	github.com/pion/dtls/v2 v2.1.5 // indirect
@@ -36,6 +37,5 @@ require (
 	github.com/zaf/g711 v0.0.0-20190814101024-76a4a538f52b // indirect
 	golang.org/x/crypto v0.0.0-20220516162934-403b01795ae8 // indirect
 	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
-	golang.org/x/text v0.3.7 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )

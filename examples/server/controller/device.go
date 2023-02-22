@@ -14,3 +14,17 @@ func (d *ServerHandler) DeviceInfo(msg *gb28181.DeviceInfo) (*server.Response, e
 	fmt.Println("xxxxxxxxxxxxxx")
 	return server.NewResponse(200, "Success"), nil
 }
+
+func (d *ServerHandler) DeviceStatus(msg *gb28181.DeviceStatus) (*server.Response, error) {
+	fmt.Println("xxxxxxxxxxxxxx")
+	spew.Dump(msg)
+	fmt.Println("xxxxxxxxxxxxxx")
+	return server.NewResponse(200, "Success"), nil
+}
+
+func (d *ServerHandler) PresetQuery(msg *gb28181.PresetQuery) (*server.Response, error) {
+	fmt.Println("xxxxxxxxxxxxxx")
+	spew.Dump(msg)
+	fmt.Println("xxxxxxxxxxxxxx")
+	return server.NewResponse(200, "Success"), nil
+}

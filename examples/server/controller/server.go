@@ -9,8 +9,9 @@ import (
 	"github.com/go-av/gosip/pkg/server"
 )
 
-func NewHandler(realm string) *ServerHandler {
+func NewHandler(sipID string, realm string) *ServerHandler {
 	handler := &ServerHandler{
+		sipID:   sipID,
 		realm:   realm,
 		clients: &sync.Map{},
 		gb28181: &gb28181.GB28181{},
@@ -19,6 +20,7 @@ func NewHandler(realm string) *ServerHandler {
 }
 
 type ServerHandler struct {
+	sipID   string
 	realm   string
 	server  server.Server
 	clients *sync.Map
@@ -45,6 +47,11 @@ func (d *ServerHandler) GetClient(user string) (server.Client, error) {
 func (d *ServerHandler) Realm() string {
 	return d.realm
 }
+
+func (d *ServerHandler) ServerSIPID() string {
+	return d.sipID
+}
+
 func (d *ServerHandler) ReceiveMessage(body message.Body) (*server.Response, error) {
 	if body.ContentType() == "Application/MANSCDP+xml" {
 		return d.gb28181.Handler(body.Data())

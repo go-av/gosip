@@ -190,27 +190,17 @@ func (s *server) Send(protocol string, address string, msg message.Message) erro
 	return s.stack.Send(protocol, address, msg)
 }
 
-func (s *server) SendMessage(client Client, content message.Body) (message.Body, error) {
+func (s *server) SendMessage(client Client, request message.Request) (message.Body, error) {
 	callID := utils.RandString(30)
+	request.SetHeader(message.NewCallIDHeader(callID))
+
 	respChan := make(chan response, 1)
 	s.responses.Store(callID, respChan)
 	defer s.responses.Delete(callID)
 
 	protocol, address := client.Transport()
-	hostAndPort, _ := utils.ParseHostAndPort(address)
-	clientAddress := message.NewAddress(client.User(), hostAndPort.Host, hostAndPort.Port)
-	msg := message.NewRequestMessage(protocol, method.MESSAGE, clientAddress)
-	msg.AppendHeader(
-		message.NewViaHeader(protocol, s.address.Host, s.address.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
-		message.NewAllowHeader(),
-		message.NewCSeqHeader(1, method.MESSAGE),
-		message.NewFromHeader("", s.address.Clone().SetUser(client.User()), message.NewParams().Set("tag", utils.RandString(20))),
-		message.NewToHeader("", clientAddress, nil),
-		message.NewCallIDHeader(callID),
-		message.NewMaxForwardsHeader(70),
-	)
-	msg.SetBody(content.ContentType(), content.Data())
-	err := s.stack.Send(protocol, address, msg)
+
+	err := s.stack.Send(protocol, address, request)
 	if err != nil {
 		return nil, err
 	}

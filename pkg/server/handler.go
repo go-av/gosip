@@ -33,6 +33,6 @@ type Handler interface {
 
 type Server interface {
 	Send(protocol string, address string, msg message.Message) error
-	SendMessage(client Client, content message.Body) (message.Body, error)
+	SendMessage(client Client, req message.Request) (message.Body, error)
 	ServerAddress() *message.Address
 }
