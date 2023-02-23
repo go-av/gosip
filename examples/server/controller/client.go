@@ -60,7 +60,7 @@ func (c *Client) SetAuth(auth bool) error {
 			// 	time.Sleep(5 * time.Second)
 			// }
 			c.server.gb28181.PTZControl(c, deviceID, ptz.PTZCmd(ptz.Left, 0, 1))
-			time.Sleep(2 * time.Second)
+			time.Sleep(3 * time.Second)
 			c.server.gb28181.GetPresetQuery(c, deviceID)
 			fmt.Println("调用预制点位")
 			c.server.gb28181.PTZControl(c, deviceID, ptz.PTZCmd(ptz.CalPos, 0, 1))

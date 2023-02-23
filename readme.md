@@ -19,4 +19,5 @@
     - [x] 呼入
     - [x] webrtc 与设备对讲
 - [x] 服务端
-    - [x] gb28181 server
+    - [x] GB28181 server
+    - [x] PTZCmd
