@@ -61,7 +61,7 @@ func main() {
 
 		fmt.Println("UDP", time.Now().Format("2006-01-02 15:04:05"), a.String(), ">>>", n)
 		aa, _ := utils.ParseHostAndPort(a.String())
-		if aa.Host == "172.20.30.61" || aa.Host == "172.20.30.54" {
+		if aa.Host == "172.20.30.61" {
 			conn, err := reuse.Dial("udp", "172.20.30.61"+addr, a.String())
 			if err != nil {
 				panic("172.20.30.61" + addr)

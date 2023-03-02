@@ -7,7 +7,6 @@ import (
 
 	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
-	"github.com/go-av/gosip/pkg/utils/ptz"
 )
 
 type Client struct {
@@ -55,9 +54,9 @@ func (c *Client) SetAuth(auth bool) error {
 			// 	// c.server.gb28181.GetDeviceConfig(c, deviceID)
 			// }
 			sdp1 := `v=0
-o=71020001001320000001 0 0 IN IP4 172.20.30.57
+o=71020001001320000001 0 0 IN IP4 172.20.30.61
 s=Play
-c=IN IP4 172.20.30.57
+c=IN IP4 172.20.30.61
 t=0 0
 m=video 40026 RTP/AVP 96 97 98
 a=recvonly
@@ -85,11 +84,12 @@ a=sendrecv
 `
 
 			deviceID := c.user
+			deviceID = "71020001001320000001"
 			var (
 				dl  dialog.Dialog
 				err error
 			)
-			if c.user == "9527" || c.user == "innoai1" {
+			if c.user == "9527" {
 				_ = sdp2
 				dd, err := sdp.ParseSDP([]byte(sdp2))
 				if err != nil {
@@ -98,7 +98,7 @@ a=sendrecv
 				dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, dd.Marshal())
 			} else {
 				_ = sdp1
-				// dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, sdp1)
+				dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, sdp1)
 			}
 			if err != nil {
 				panic(err)
@@ -110,10 +110,9 @@ a=sendrecv
 						return
 					case state := <-dl.State():
 						fmt.Println("接收状态更新---------", state)
-
 						if state.State() == dialog.Accepted {
 							fmt.Println("对方已接听:", string(dl.SDP()))
-							time.Sleep(10 * time.Second)
+							time.Sleep(20 * time.Second)
 							dl.Bye()
 						}
 						if state.State() == dialog.Error {
@@ -126,12 +125,12 @@ a=sendrecv
 			fmt.Println("认证完成")
 			// time.Sleep(2 * time.Second)
 			// // // 预制点位调试
-			all := []ptz.PTZ_Type{ptz.Right, ptz.Left, ptz.Left, ptz.Up, ptz.Down, ptz.LeftUp, ptz.LeftDown, ptz.RightUp, ptz.RightDown, ptz.Stop}
-			for _, a := range all {
-				fmt.Println("方位调整", string(a))
-				c.server.gb28181.PTZControl(c, deviceID, ptz.PTZCmd(a, 50, 0))
-				time.Sleep(5 * time.Second)
-			}
+			// all := []ptz.PTZ_Type{ptz.Right, ptz.Left, ptz.Left, ptz.Up, ptz.Down, ptz.LeftUp, ptz.LeftDown, ptz.RightUp, ptz.RightDown, ptz.Stop}
+			// for _, a := range all {
+			// 	fmt.Println("方位调整", string(a))
+			// 	c.server.gb28181.PTZControl(c, deviceID, ptz.PTZCmd(a, 50, 0))
+			// 	time.Sleep(5 * time.Second)
+			// }
 
 			// c.server.gb28181.PTZControl(c, deviceID, ptz.PTZCmd(ptz.Left, 0, 1))
 			time.Sleep(3 * time.Second)

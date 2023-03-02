@@ -236,7 +236,15 @@ func (dl *dialog) HandleResponse(resp message.Response) {
 					if err != nil {
 						logrus.Error(err)
 					}
-					dl.updateState(Error, fmt.Sprintf("code:%d msg:%s", resp.StatusCode(), resp.Reason()))
+					msg := resp.Reason()
+					vals := resp.GetHeaders("Warning")
+					if vals != nil {
+						warningHeader, ok := vals[0].(*message.WarningHeader)
+						if ok {
+							msg += "(" + warningHeader.Value() + ")"
+						}
+					}
+					dl.updateState(Error, fmt.Sprintf("code:%d msg:%s", resp.StatusCode(), msg))
 				}
 				dl.cancel()
 			}
