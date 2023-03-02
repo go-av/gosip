@@ -194,49 +194,45 @@ func call(w http.ResponseWriter, r *http.Request) {
 			resp(w, 500, "呼叫超时", nil)
 			return
 		case <-dl.Context().Done():
-			dl.State()
 			return
 		case state := <-dl.State():
-			go func(state dialog.State) {
-				fmt.Println("state=======", state)
-				if state.State() == dialog.Accepted {
-					sp, err := sdp.ParseSDP(dl.SDP())
-					if err != nil {
+			fmt.Println("state:", state.State(), state.Reason())
+			if state.State() == dialog.Accepted {
+				sp, err := sdp.ParseSDP(dl.SDP())
+				if err != nil {
+					panic(err)
+				}
+				udpConns := map[string]*udpConn{}
+				for _, media := range sp.MediaDescriptions {
+					if media.MediaName.Port.Value > 0 {
+						udpConns[media.MediaName.Media] = &udpConn{
+							address: sp.Origin.UnicastAddress,
+							port:    media.MediaName.Port.Value,
+							formats: media.MediaName.Formats,
+						}
+					}
+				}
+
+				for _, c := range udpConns {
+					if c.conn, err = net.Dial("udp", fmt.Sprintf("%s:%d", c.address, c.port)); err != nil {
 						panic(err)
 					}
-					udpConns := map[string]*udpConn{}
-					for _, media := range sp.MediaDescriptions {
-						if media.MediaName.Port.Value > 0 {
-							udpConns[media.MediaName.Media] = &udpConn{
-								address: sp.Origin.UnicastAddress,
-								port:    media.MediaName.Port.Value,
-								formats: media.MediaName.Formats,
-							}
-						}
-					}
-
-					for _, c := range udpConns {
-						if c.conn, err = net.Dial("udp", fmt.Sprintf("%s:%d", c.address, c.port)); err != nil {
-							panic(err)
-						}
-					}
-
-					answer, stop := do(dl.Context(), w, udpConns, offer)
-					resp(w, 200, "success", encode(answer))
-					go func() {
-						<-stop
-						fmt.Println("退出")
-						dl.Bye()
-					}()
-
-					return
 				}
 
-				if state.State() == dialog.Error {
-					resp(w, 500, state.Reason(), nil)
-					return
-				}
-			}(state)
+				answer, stop := do(dl.Context(), w, udpConns, offer)
+				resp(w, 200, "success", encode(answer))
+				go func() {
+					<-stop
+					fmt.Println("退出")
+					dl.Bye()
+				}()
+				return
+			}
+
+			if state.State() == dialog.Error {
+				resp(w, 500, state.Reason(), nil)
+				return
+			}
 
 		}
 	}
@@ -334,9 +330,8 @@ func do(ctx context.Context, w http.ResponseWriter, udpConns map[string]*udpConn
 
 func mediaForwarding(peerConnection *webrtc.PeerConnection, udpConns map[string]*udpConn) {
 	if conn, ok := udpConns["video"]; ok {
-		fmt.Println("video track->", fmt.Sprintf("%s:%d", conn.address, conn.port))
+		fmt.Println("video track->", conn.formats, fmt.Sprintf("%s:%d", conn.address, conn.port))
 
-		fmt.Println(conn.formats)
 		mimeType := webrtc.MimeTypeVP8
 
 		videoTrack, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: mimeType}, "video", "pion")
@@ -352,7 +347,7 @@ func mediaForwarding(peerConnection *webrtc.PeerConnection, udpConns map[string]
 	}
 
 	if conn, ok := udpConns["audio"]; ok {
-		fmt.Println("audio track->", fmt.Sprintf("%s:%d", conn.address, conn.port))
+		fmt.Println("audio track->", conn.formats, fmt.Sprintf("%s:%d", conn.address, conn.port))
 		audioTrack, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus}, "audio", "pion")
 		if err != nil {
 			panic(err)
