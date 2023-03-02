@@ -1,10 +1,13 @@
 package transport
 
 import (
+	"strings"
+
 	"github.com/sirupsen/logrus"
 )
 
 func NewTransportListenPoint(protocol string, addr string) (ListeningPoint, error) {
+	protocol = strings.ToLower(protocol)
 	switch protocol {
 	case "udp":
 		logrus.Info("Creating UDP listening point")

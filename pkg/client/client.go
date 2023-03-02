@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 
-	"github.com/go-av/gosip/pkg/client/dialog"
+	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/method"
-	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/sip"
 	"github.com/go-av/gosip/pkg/utils"
 	"github.com/sirupsen/logrus"
@@ -31,13 +31,10 @@ type Client struct {
 
 	localAddr  *utils.HostAndPort
 	serverAddr *utils.HostAndPort
-	// address       *message.Address // 客户端的地址及端口
-	// serverAddrees *message.Address // 服务器地址
-	protocol  string // 传输协议  UDP or TCP
-	dialogMgr *dialog.DialogManger
-	dialogs   chan dialog.Dialog
 
-	sdp func(*sdp.SDP) *sdp.SDP
+	protocol string // 传输协议  UDP or TCP
+	dialogs  *sync.Map
+	receive  chan dialog.Dialog // 接收到的会话
 }
 
 func NewClient(displayName string, user string, password string, protocol string, address string) (*Client, error) {
@@ -53,13 +50,15 @@ func NewClient(displayName string, user string, password string, protocol string
 		stack:       sip.NewSipStack(user),
 		protocol:    protocol,
 		localAddr:   addr,
-		dialogs:     make(chan dialog.Dialog, 10),
+		dialogs:     &sync.Map{},
+		receive:     make(chan dialog.Dialog, 10),
 	}
-	client.dialogMgr = dialog.NewDialogManger(client)
 	return client, nil
 }
 
 func (client *Client) Start(ctx context.Context, address string) error {
+	fmt.Println("reg ", address)
+
 	addr, err := utils.ParseHostAndPort(address)
 	if err != nil {
 		return err
@@ -99,14 +98,6 @@ func (client *Client) Start(ctx context.Context, address string) error {
 	}
 }
 
-func (client *Client) Stop() {
-	client.cancelFunc()
-}
-
-func (client *Client) Protocol() string {
-	return client.protocol
-}
-
 // 暂时未做认证
 func (client *Client) registrar(expire int, resp message.Response) error {
 	msg := message.NewRequestMessage(client.protocol, method.REGISTER, message.NewAddress(client.user, client.serverAddr.Host, client.serverAddr.Port))
@@ -142,7 +133,7 @@ func (client *Client) registrar(expire int, resp message.Response) error {
 		}
 	}
 
-	err := client.Send(client.serverAddr.String(), msg)
+	err := client.Send(client.protocol, client.serverAddr.String(), msg)
 	if err != nil {
 		logrus.Errorf("%s registrar failed: %s", client.user, err)
 		return err
@@ -150,38 +141,83 @@ func (client *Client) registrar(expire int, resp message.Response) error {
 	return nil
 }
 
-func (client *Client) HandleRequests(msg message.Request) {
-	switch msg.Method() {
-	case method.INVITE, method.ACK, method.BYE:
-		dialog := client.dialogMgr.HandleMessage(msg)
-		if dialog != nil {
-			client.dialogs <- dialog
-		}
-	default:
-		resp := message.NewResponse(msg, 200, "Ok")
-		err := client.Send(client.serverAddr.String(), resp)
+func (client *Client) HandleRequest(req message.Request) {
+	switch req.Method() {
+	case method.INVITE:
+		to, _ := req.To()
+		to.Params.Set("tag", utils.RandString(10))
+		req.SetHeader(to)
+
+		resp := message.NewResponse(req, 100, "Trying")
+		err := client.Send(client.protocol, client.serverAddr.String(), resp)
 		if err != nil {
-			logrus.Error(err)
+			return
 		}
+
+		callID, ok := req.CallID()
+		if !ok {
+			return
+		}
+
+		if _, ok := client.dialogs.Load(callID.Value()); ok {
+			resp = message.NewResponse(req, 400, "Bad Request:"+"会话已经存在！")
+			err := client.Send(client.protocol, client.serverAddr.String(), resp)
+			if err != nil {
+				logrus.Error(err)
+			}
+			return
+		}
+
+		from, _ := req.From()
+
+		dl, err := dialog.Receive(client, dialog.NewFrom(from.DisplayName, from.Address.User, client.protocol, client.serverAddr.String()), dialog.NewTo(to.Address.User, client.localAddr.String()), callID.Value(), req)
+		if err != nil {
+			resp = message.NewResponse(req, 500, err.Error())
+			_ = client.Send(client.protocol, client.serverAddr.String(), resp)
+			return
+		}
+
+		client.dialogs.Store(callID.Value(), dl)
+		go dl.Run(func(callID string) {
+			client.dialogs.Delete(callID)
+		})
+		client.receive <- dl
+	case method.ACK, method.BYE, method.CANCEL:
+		callID, ok := req.CallID()
+		if !ok {
+			return
+		}
+
+		if v, ok := client.dialogs.Load(callID.Value()); ok {
+			dl := v.(dialog.Dialog)
+			dl.HandleRequest(req)
+		}
+
+	default:
+		// resp := message.NewResponse(msg, 200, "Ok")
+		// err := client.Send(client.serverAddr.String(), resp)
+		// if err != nil {
+		// 	logrus.Error(err)
+		// }
 	}
 }
 
-func (client *Client) HandleResponses(msg message.Response) {
-	cseq, ok := msg.CSeq()
+func (client *Client) HandleResponse(resp message.Response) {
+	cseq, ok := resp.CSeq()
 	if !ok {
 		return
 	}
 
 	switch cseq.Method {
 	case method.REGISTER:
-		switch msg.StatusCode() {
+		switch resp.StatusCode() {
 		case 200:
 			client.auth = true
 			if client.authCallback != nil {
 				client.authCallback(nil)
 			}
 			var d = time.Duration(1 * time.Second)
-			if con, ok := msg.Contact(); ok {
+			if con, ok := resp.Contact(); ok {
 				if param, ok := con.Params.Get("expires"); ok {
 					expire, _ := strconv.ParseInt(param, 10, 64)
 					if (expire - 10) > 0 {
@@ -193,77 +229,53 @@ func (client *Client) HandleResponses(msg message.Response) {
 			client.registrar(-1, nil)
 		case 401:
 			client.auth = false
-			client.registrar(4800, msg)
+			client.registrar(4800, resp)
 		case 403, 404:
 			client.auth = false
 			if client.authCallback != nil {
-				client.authCallback(fmt.Errorf(msg.Reason()))
+				client.authCallback(fmt.Errorf(resp.Reason()))
 			}
 		}
 
-	case method.INVITE:
-		client.dialogMgr.HandleMessage(msg)
-	case method.BYE:
-		client.dialogMgr.HandleMessage(msg)
+	case method.INVITE, method.ACK, method.BYE, method.CANCEL:
+		callID, ok := resp.CallID()
+		if !ok {
+			return
+		}
+
+		if v, ok := client.dialogs.Load(callID.Value()); ok {
+			dl := v.(dialog.Dialog)
+			dl.HandleResponse(resp)
+		}
 	default:
 		fmt.Println("\n ====== 未处理 ======")
-		fmt.Println(msg.String())
+		fmt.Println(resp.String())
 		fmt.Println(" ====== 未处理 ======")
 	}
 }
 
-func (client *Client) Call(user string) (dialog.Dialog, error) {
+func (client *Client) Call(ctx context.Context, user string, sdp string) (dialog.Dialog, error) {
 	if !client.auth {
 		return nil, errors.New("Unauthorized")
 	}
-	callID := utils.RandString(30)
+	dl, err := dialog.Invite(ctx, client,
+		dialog.NewFrom(client.displayName, client.user, client.protocol, client.localAddr.String()),
+		dialog.NewTo(user, client.serverAddr.String()), []byte(sdp), nil)
 
-	msg := message.NewRequestMessage(client.protocol, method.INVITE, message.NewAddress(user, client.serverAddr.Host, 0))
-
-	msg.AppendHeader(
-		message.NewViaHeader(client.protocol, client.localAddr.Host, client.localAddr.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
-		message.NewAllowHeader(),
-		message.NewCSeqHeader(1, method.INVITE),
-		message.NewFromHeader(client.displayName, message.NewAddress(client.user, client.serverAddr.Host, 0), message.NewParams().Set("tag", utils.RandString(20))),
-		message.NewToHeader("", message.NewAddress(user, client.serverAddr.Host, 0), nil),
-		message.NewCallIDHeader(callID),
-		message.NewMaxForwardsHeader(70),
-		message.NewContactHeader(client.displayName, message.NewAddress(user, client.localAddr.Host, client.localAddr.Port), client.protocol, message.NewParams().Set("expires", "3600")),
-		message.NewAllowEventHeader("talk"),
-	)
-
-	body := client.sdp(nil)
-	msg.SetBody(body.ContentType(), body.Body())
-	err := client.stack.Send(client.protocol, client.serverAddr.String(), msg)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
-
-	dialog := client.dialogMgr.HandleMessage(msg)
-	return dialog, nil
+	go dl.Run(func(callID string) {
+		client.dialogs.Delete(callID)
+	})
+	client.dialogs.Store(dl.DialogID(), dl)
+	return dl, nil
 }
 
-func (client *Client) Send(address string, msg message.Message) error {
-	return client.stack.Send(client.protocol, address, msg)
+func (client *Client) Send(protocol string, address string, msg message.Message) error {
+	return client.stack.Send(protocol, address, msg)
 }
 
-func (client *Client) Address() *utils.HostAndPort {
-	return client.localAddr
-}
-
-func (client *Client) Dialog() chan dialog.Dialog {
-	return client.dialogs
-}
-
-func (client *Client) User() string {
-	return client.user
-}
-
-func (client *Client) SDP(sd *sdp.SDP) *sdp.SDP {
-	return client.sdp(sd)
-}
-
-func (client *Client) SetSDP(sd func(*sdp.SDP) *sdp.SDP) {
-	client.sdp = sd
+func (client *Client) Receive() chan dialog.Dialog {
+	return client.receive
 }

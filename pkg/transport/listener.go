@@ -12,6 +12,6 @@ type ListeningPoint interface {
 }
 
 type Listener interface {
-	HandleRequests(message.Request)
-	HandleResponses(message.Response)
+	HandleRequest(message.Request)
+	HandleResponse(message.Response)
 }

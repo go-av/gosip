@@ -234,7 +234,9 @@ func (auth *Authorization) Auth(username string, password string, method string,
 	if newAuth.cnonce == "" {
 		newAuth.SetCNonce(utils.RandString(10))
 	}
-	newAuth.SetNc("00000001")
+	if newAuth.nc == "" {
+		newAuth.SetNc("00000001")
+	}
 
 	if uri != "" {
 		newAuth.SetUri(uri)

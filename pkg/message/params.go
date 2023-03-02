@@ -52,7 +52,6 @@ func (p *Params) ToString(sep string) string {
 			buf.WriteString(key.(string) + "=" + value.(string))
 		} else {
 			buf.WriteString(key.(string))
-
 		}
 
 		return true

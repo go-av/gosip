@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-av/gosip/pkg/client"
-	"github.com/go-av/gosip/pkg/client/dialog"
+	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/utils"
 	"github.com/go-cmd/cmd"
@@ -33,8 +33,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	client.SetSDP(func(*sdp.SDP) *sdp.SDP {
-		str := `v=0
+	str := `v=0
 o=- 3868331676 3868331676 IN IP4 %s
 s=gosip 1.0.0
 t=0 0
@@ -50,59 +49,48 @@ a=rtcp:50009
 a=rtpmap:96 VP8/90000
 a=sendrecv
 `
-		sd, err := sdp.ParseSDP([]byte(fmt.Sprintf(str, localIP, localIP, localIP)))
-		if err != nil {
-			panic(err)
-		}
-		return sd
-	})
+	sd, err := sdp.ParseSDP([]byte(fmt.Sprintf(str, localIP, localIP, localIP)))
+	if err != nil {
+		panic(err)
+	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	// err := client.Start(ctx, "172.20.50.12", 5060)
-	// err := client.Start(ctx, "172.20.30.92", 5060)
+	ctx := context.Background()
 	err = client.Start(ctx, *serverAddr)
 	if err != nil {
 		panic(err)
 	}
 
-	time.Sleep(10 * time.Minute)
+	time.Sleep(1 * time.Second)
 
 	fmt.Println("呼叫", *to)
-	dl, err := client.Call(*to)
+	dl, err := client.Call(ctx, *to, sd.Marshal())
 	if err != nil {
 		panic(err)
 	}
 
-	defer dl.Hangup()
-
 	for {
 		select {
-		case <-ctx.Done():
-			dl.Hangup()
+		case <-dl.Context().Done():
 			return
 		case state := <-dl.State():
-			if state == dialog.Answered {
-				sp := dl.SDP()
+			fmt.Println("state", state.State(), state.Reason())
+			if state.State() == dialog.Accepted {
+				sp, err := sdp.ParseSDP(dl.SDP())
+				if err != nil {
+					panic(err)
+				}
 				for _, media := range sp.MediaDescriptions {
-					fmt.Println(media.MediaName.Media, sp.Origin.UnicastAddress, media.MediaName.Port.Value)
+					fmt.Println("media", media.MediaName.Media, sp.Origin.UnicastAddress, media.MediaName.Port.Value)
 				}
 
+				time.Sleep(3 * time.Second)
 				for _, media := range sp.MediaDescriptions {
 					if media.MediaName.Media == "audio" {
 						stop := Audio2RTP(ctx, "./test.wav", fmt.Sprintf("rtp://%s:%d", sp.Origin.UnicastAddress, media.MediaName.Port.Value))
 						<-stop
-						dl.Hangup()
 					}
 				}
-			}
-			if state == dialog.Hangup {
-				cancel()
-				fmt.Println("Hangup")
-				return
-			}
-			if state == dialog.Error {
-				fmt.Println("Error", dl.StatusCode(), dl.Reason())
-				return
+				dl.Bye()
 			}
 		}
 	}
@@ -116,6 +104,7 @@ func Audio2RTP(ctx context.Context, audioUrl string, rtpURI string) chan bool {
 	}
 
 	ffmpegCMD := cmd.NewCmd("ffmpeg", args...)
+	fmt.Println("ffmpeg", args)
 	statusChan := ffmpegCMD.Start()
 	go func() {
 		defer func() {

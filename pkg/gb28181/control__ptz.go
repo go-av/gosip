@@ -12,7 +12,12 @@ func (g *GB28181) PTZControl(client server.Client, deviceID string, ptzCMD strin
 		CmdType:  CmdType__DeviceControl,
 		SN:       sn,
 		DeviceID: deviceID,
-		PTZCmd:   ptzCMD,
+		ControlCommand: ControlCommand{
+			PTZCmd: ptzCMD,
+			Info: ControlCommandInfo{
+				ControlPriority: 1,
+			},
+		},
 	})
 	if err != nil {
 		return err

@@ -1,11 +1,11 @@
-package controller
+package sip
 
 import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-av/gosip/pkg/gb28181"
 )
 
-func (d *ServerHandler) Catalog(catalog *gb28181.Catalog) error {
+func (d *SipHandler) Catalog(catalog *gb28181.Catalog) error {
 	spew.Dump(catalog)
 	// client, err := d.GetClient("34020000001110000002")
 	// if err != nil {

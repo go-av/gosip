@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/go-av/gosip/examples/server/controller"
+	"github.com/go-av/gosip/examples/server/sip"
 	"github.com/go-av/gosip/pkg/server"
 	"github.com/go-av/gosip/pkg/utils"
 )
@@ -15,9 +15,11 @@ func main() {
 	port := flag.Uint64("port", 25060, "监听端口")
 	flag.Parse()
 	ctx := context.Background()
-	s := controller.NewHandler("99920000002000000000", "99999999")
-	server := server.NewServer(s)
-	err := server.ListenUDPServer(ctx, "0.0.0.0", *ip, uint16(*port), []string{"udp", "tcp"})
+	handler := sip.NewSipHandler("99920000002000000000", "99999999")
+	server := server.NewServer(true, handler)
+	handler.SetServer(server)
+
+	err := server.SIPListen(ctx, "0.0.0.0", *ip, uint16(*port), "udp", "tcp")
 	if err != nil {
 		fmt.Println(err)
 	}

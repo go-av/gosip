@@ -2,7 +2,8 @@ package gb28181
 
 import (
 	"encoding/xml"
-	"sync"
+	"fmt"
+	"strings"
 
 	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/method"
@@ -19,14 +20,12 @@ func NewGB28181(server server.Server, handler GB28181Handler) *GB28181 {
 	return &GB28181{
 		server:  server,
 		handler: handler,
-		cache:   &sync.Map{},
 	}
 }
 
 type GB28181 struct {
 	server  server.Server
 	handler GB28181Handler
-	cache   *sync.Map
 }
 
 func (g *GB28181) Handler(body []byte) (*server.Response, error) {
@@ -57,7 +56,11 @@ func (g *GB28181) Handler(body []byte) (*server.Response, error) {
 	return server.NewResponse(200, "success."), nil
 }
 
-func (g *GB28181) SendMessage(client server.Client, data any) (message.Body, error) {
+type ClientEncodingFormat interface {
+	EncodingFormat() string
+}
+
+func (g *GB28181) SendMessage(client server.Client, data any) (message.Response, error) {
 	content, err := xml.MarshalIndent(data, " ", "")
 	if err != nil {
 		return nil, err
@@ -66,6 +69,7 @@ func (g *GB28181) SendMessage(client server.Client, data any) (message.Body, err
 	protocol, address := client.Transport()
 
 	hostAndPort, _ := utils.ParseHostAndPort(address)
+	// clientAddress := message.NewAddress(client.User(), hostAndPort.Host, hostAndPort.Port)
 	clientAddress := message.NewAddress(client.User(), hostAndPort.Host, hostAndPort.Port).WithDomain(g.handler.Realm())
 	msg := message.NewRequestMessage(protocol, method.MESSAGE, clientAddress)
 	msg.AppendHeader(
@@ -74,7 +78,20 @@ func (g *GB28181) SendMessage(client server.Client, data any) (message.Body, err
 		message.NewFromHeader("", g.server.ServerAddress().Clone().SetUser(g.handler.ServerSIPID()).WithDomain(g.handler.Realm()), message.NewParams().Set("tag", utils.RandString(20))),
 		message.NewToHeader("", clientAddress, nil),
 		message.NewMaxForwardsHeader(70),
+		message.NewAllowHeader(),
 	)
-	msg.SetBody(string(message.ContentType__MANSCDP_XML), append([]byte("<?xml version=\"1.0\" encoding=\"GBK\"?>\r\n"), content...))
+
+	if en, ok := client.(ClientEncodingFormat); ok {
+		switch strings.ToLower(en.EncodingFormat()) {
+		case "gb2312", "gbk":
+			fmt.Println("gb2312")
+			msg.SetBody(string(message.ContentType__MANSCDP_XML), append([]byte("<?xml version=\"1.0\" encoding=\"GBK\"?>\r\n"), content...))
+		default:
+			msg.SetBody(string(message.ContentType__MANSCDP_XML), append([]byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"), content...))
+		}
+	} else {
+		msg.SetBody(string(message.ContentType__MANSCDP_XML), content)
+	}
+
 	return g.server.SendMessage(client, msg.(message.Request))
 }

@@ -8,7 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/go-av/gosip/pkg/authentication"
+	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/method"
 	"github.com/go-av/gosip/pkg/sip"
@@ -18,7 +20,7 @@ import (
 
 type response struct {
 	err  error
-	body message.Body
+	resp message.Response
 }
 
 type server struct {
@@ -32,26 +34,29 @@ type server struct {
 	handler   Handler
 	address   *message.Address
 	responses *sync.Map
+	dialog    *sync.Map          // 呼叫会话管理
+	receive   chan dialog.Dialog // 接收到的会话
 }
 
-func NewServer(handler Handler) *server {
+func NewServer(needauth bool, handler Handler) *server {
 	s := &server{
-		needauth:  true,
+		needauth:  needauth,
 		handler:   handler,
 		responses: &sync.Map{},
+		dialog:    &sync.Map{},
+		receive:   make(chan dialog.Dialog, 5),
 	}
-	handler.SetServer(s)
 	return s
 }
 
 // monitorIP 监控ID，可指定监听IP，或设置为 0.0.0.0 为监听所有
 // ip 对外暴露的IP
 // port 监听端口
-func (s *server) ListenUDPServer(ctx context.Context, monitorIP string, ip string, port uint16, protocols []string) error {
+func (s *server) SIPListen(ctx context.Context, monitorIP string, ip string, port uint16, protocols ...string) error {
 	if monitorIP == "" {
 		monitorIP = "0.0.0.0"
 	}
-	logrus.Infof("ListenUDPServer: %s(%s):%d", ip, monitorIP, port)
+	logrus.Infof("SIPListen: %s:%d", monitorIP, port)
 	ctx, cancelFunc := context.WithCancel(ctx)
 	s.ctx = ctx
 	s.cancelFunc = cancelFunc
@@ -73,7 +78,7 @@ func (s *server) ListenUDPServer(ctx context.Context, monitorIP string, ip strin
 	return nil
 }
 
-func (s *server) HandleRequests(req message.Request) {
+func (s *server) HandleRequest(req message.Request) {
 	user := ""
 	if from, ok := req.From(); ok {
 		user = from.Address.User
@@ -99,6 +104,8 @@ func (s *server) HandleRequests(req message.Request) {
 
 		auth := authentication.Parse(authheader.Value())
 		if auth.Response() != auth.Clone().Auth(auth.Username(), client.Password(), string(req.Method()), auth.Uri()).Response() {
+			spew.Dump(auth)
+			fmt.Println(auth.Clone().Auth(auth.Username(), client.Password(), string(req.Method()), auth.Uri()).String())
 			resp := message.NewResponse(req, 403, "Password Error")
 			s.stack.Send(protocol, adddress, resp)
 			return
@@ -107,6 +114,56 @@ func (s *server) HandleRequests(req message.Request) {
 	}
 
 	switch req.Method() {
+	case method.INVITE:
+		to, _ := req.To()
+		to.Params.Set("tag", utils.RandString(10))
+		req.SetHeader(to)
+
+		resp := message.NewResponse(req, 100, "Trying")
+		err := s.stack.Send(protocol, adddress, resp)
+		if err != nil {
+			return
+		}
+
+		callID, ok := req.CallID()
+		if !ok {
+			return
+		}
+
+		if _, ok := s.dialog.Load(callID.Value()); ok {
+			resp = message.NewResponse(req, 400, "Bad Request:"+"会话已经存在！")
+			_ = s.Send(protocol, adddress, resp)
+			return
+		}
+
+		from, _ := req.From()
+
+		dl, err := dialog.Receive(s, dialog.NewFrom(from.DisplayName, from.Address.User, protocol, adddress), dialog.NewTo(to.Address.User, (&utils.HostAndPort{
+			Host: s.address.Host,
+			Port: s.address.Port,
+		}).String()), callID.Value(), req)
+		if err != nil {
+			resp = message.NewResponse(req, 500, err.Error())
+			_ = s.Send(protocol, adddress, resp)
+			return
+		}
+
+		s.dialog.Store(callID.Value(), dl)
+		go dl.Run(func(callID string) {
+			s.dialog.Delete(callID)
+		})
+		s.receive <- dl
+	case method.ACK, method.BYE, method.CANCEL:
+		callID, ok := req.CallID()
+		if !ok {
+			return
+		}
+
+		if v, ok := s.dialog.Load(callID.Value()); ok {
+			dl := v.(dialog.Dialog)
+			dl.HandleRequest(req)
+		}
+
 	case method.REGISTER:
 		var expires int64 = 0
 		if ex, ok := req.Expires(); ok {
@@ -128,6 +185,8 @@ func (s *server) HandleRequests(req message.Request) {
 		resp := message.NewResponse(req, 200, "OK")
 		s.stack.Send(protocol, adddress, resp)
 		return
+	case method.INFO:
+
 	case method.MESSAGE:
 		contentTypeHeader, ok := req.ContentType()
 		if !ok {
@@ -157,12 +216,23 @@ func (s *server) HandleRequests(req message.Request) {
 	}
 }
 
-func (s *server) HandleResponses(resp message.Response) {
+func (s *server) HandleResponse(resp message.Response) {
 	cseq, ok := resp.CSeq()
 	if !ok {
 		return
 	}
 	switch cseq.Method {
+	case method.INVITE, method.ACK, method.BYE, method.CANCEL:
+		callID, ok := resp.CallID()
+		if !ok {
+			return
+		}
+
+		if v, ok := s.dialog.Load(callID.Value()); ok {
+			dl := v.(dialog.Dialog)
+			dl.HandleResponse(resp)
+		}
+
 	case method.MESSAGE:
 		callID, ok := resp.CallID()
 		if ok {
@@ -171,12 +241,11 @@ func (s *server) HandleResponses(resp message.Response) {
 				if !resp.IsSuccess() {
 					r.err = errors.New(resp.Reason())
 				}
-				if contentType, ok := resp.ContentType(); ok {
-					r.body = message.NewBody(contentType.Value(), resp.Body())
-				}
+				r.resp = resp
 				callback.(chan response) <- r
 			}
 		}
+
 	default:
 		fmt.Println(cseq.Method, resp.StartLine(), "暂未处理")
 	}
@@ -190,7 +259,7 @@ func (s *server) Send(protocol string, address string, msg message.Message) erro
 	return s.stack.Send(protocol, address, msg)
 }
 
-func (s *server) SendMessage(client Client, request message.Request) (message.Body, error) {
+func (s *server) SendMessage(client Client, request message.Request) (message.Response, error) {
 	callID := utils.RandString(30)
 	request.SetHeader(message.NewCallIDHeader(callID))
 
@@ -214,6 +283,23 @@ func (s *server) SendMessage(client Client, request message.Request) (message.Bo
 		if resp.err != nil {
 			return nil, err
 		}
-		return resp.body, nil
+
+		return resp.resp, nil
 	}
+}
+
+func (s *server) Invite(ctx context.Context, from dialog.From, to dialog.To, sdp string, updateMsg func(msg message.Message)) (dialog.Dialog, error) {
+	dl, err := dialog.Invite(ctx, s, from, to, []byte(sdp), updateMsg)
+	if err != nil {
+		return nil, err
+	}
+	go dl.Run(func(callID string) {
+		s.dialog.Delete(callID)
+	})
+	s.dialog.Store(dl.DialogID(), dl)
+	return dl, nil
+}
+
+func (s *server) Receive() chan dialog.Dialog {
+	return s.receive
 }

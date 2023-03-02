@@ -7,16 +7,17 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"sync"
 	"text/template"
 	"time"
 
-	"github.com/go-av/gosip/examples/client/webrtc/controller"
 	"github.com/go-av/gosip/pkg/client"
-	"github.com/go-av/gosip/pkg/client/dialog"
+	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/sdp"
-	"github.com/go-av/gosip/pkg/utils"
+	reuse "github.com/libp2p/go-reuseport"
 	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v3"
 	"github.com/sirupsen/logrus"
@@ -65,28 +66,30 @@ func resp(w http.ResponseWriter, code int, msg string, data any) {
 }
 
 var sipClient *client.Client
-var streamMgr *controller.StreamMgr
+var streamMgr *StreamMgr
+var callsdp = ""
+var iceServer = ""
 
 func main() {
-
-	localIP := utils.LocalIp()
-	localIP = "172.20.30.57"
+	// localIP := utils.LocalIp()
+	localIP := "172.20.30.61"
 	protocol := flag.String("protocol", "udp", "protocol:[udp , tcp],default=udp")
 	localAddr := flag.String("local-addr", fmt.Sprintf("%s:5060", localIP), "SIP 本地监听地址")
 	serverAddr := flag.String("server-addr", "172.20.50.12:5060", "SIP 服务端地址")
+	ice := flag.String("ice-server", "stun:172.20.50.12:3478", "ICE URL")
 	httpAddress := flag.String("http-addr", ":80", "HTTP 服务地址")
 	mediaPort := flag.Int("mediaPort", 50000, "媒体端口")
 	userName := flag.String("userName", "snail", "用户名")
 	displayName := flag.String("displayName", "snail", "显示名")
 	password := flag.String("password", "admin", "密码")
 	flag.Parse()
+	iceServer = *ice
 	var err error
 	sipClient, err = client.NewClient(*userName, *displayName, *password, *protocol, *localAddr)
 	if err != nil {
 		panic(err)
 	}
-	sipClient.SetSDP(func(*sdp.SDP) *sdp.SDP {
-		sdpTmp := `v=0
+	sdpTmp := `v=0
 o=- 1661500261 1 IN IP4 {{.ip}}
 s=ps
 c=IN IP4 {{.ip}}
@@ -117,25 +120,26 @@ a=mid:video
 a=sendrecv
 `
 
-		tmpl, err := template.New("sip").Parse(sdpTmp)
-		if err != nil {
-			panic(err)
-		}
-		buf := bytes.NewBuffer(nil)
-		if err := tmpl.Execute(buf, map[string]any{
-			"ip":         localIP,
-			"mediaPort1": *mediaPort,
-			"mediaPort2": *mediaPort,
-		}); err != nil {
-			panic(err)
-		}
+	tmpl, err := template.New("sip").Parse(sdpTmp)
+	if err != nil {
+		panic(err)
+	}
+	buf := bytes.NewBuffer(nil)
+	if err := tmpl.Execute(buf, map[string]any{
+		"ip":         localIP,
+		"mediaPort1": *mediaPort,
+		"mediaPort2": *mediaPort,
+	}); err != nil {
+		panic(err)
+	}
 
-		fmt.Println(buf.String())
-		sd, _ := sdp.ParseSDP(buf.Bytes())
-		return sd
-	})
+	sd, err := sdp.ParseSDP(buf.Bytes())
+	if err != nil {
+		panic(err)
+	}
+	callsdp = sd.Marshal()
 
-	streamMgr = controller.NewStreamMgr(localIP, *mediaPort)
+	streamMgr = NewStreamMgr(localIP, *mediaPort)
 
 	ctx, _ := context.WithCancel(context.Background())
 	err = sipClient.Start(ctx, *serverAddr)
@@ -173,8 +177,8 @@ func call(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("call", userID)
-	dl, err := sipClient.Call(userID)
+	ctx, cancel := context.WithCancel(context.Background())
+	dl, err := sipClient.Call(ctx, userID, callsdp)
 	if err != nil {
 		resp(w, 500, err.Error(), nil)
 		return
@@ -183,48 +187,57 @@ func call(w http.ResponseWriter, r *http.Request) {
 	timer := time.NewTimer(30 * time.Second) // 30秒未接，将自动挂断
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-timer.C:
+			cancel()
 			resp(w, 500, "呼叫超时", nil)
 			return
+		case <-dl.Context().Done():
+			dl.State()
+			return
 		case state := <-dl.State():
-			fmt.Println("state=======", state)
-			if state == dialog.Answered {
-				sp := dl.SDP()
-				udpConns := map[string]*udpConn{}
-				for _, media := range sp.MediaDescriptions {
-					if media.MediaName.Port.Value > 0 {
-						udpConns[media.MediaName.Media] = &udpConn{
-							address: sp.Origin.UnicastAddress,
-							port:    media.MediaName.Port.Value,
-							formats: media.MediaName.Formats,
-						}
-					}
-				}
-
-				for _, c := range udpConns {
-					if c.conn, err = net.Dial("udp", fmt.Sprintf("%s:%d", c.address, c.port)); err != nil {
+			go func(state dialog.State) {
+				fmt.Println("state=======", state)
+				if state.State() == dialog.Accepted {
+					sp, err := sdp.ParseSDP(dl.SDP())
+					if err != nil {
 						panic(err)
 					}
-					fmt.Println("dial", fmt.Sprintf("%s:%d", c.address, c.port))
+					udpConns := map[string]*udpConn{}
+					for _, media := range sp.MediaDescriptions {
+						if media.MediaName.Port.Value > 0 {
+							udpConns[media.MediaName.Media] = &udpConn{
+								address: sp.Origin.UnicastAddress,
+								port:    media.MediaName.Port.Value,
+								formats: media.MediaName.Formats,
+							}
+						}
+					}
+
+					for _, c := range udpConns {
+						if c.conn, err = net.Dial("udp", fmt.Sprintf("%s:%d", c.address, c.port)); err != nil {
+							panic(err)
+						}
+					}
+
+					answer, stop := do(dl.Context(), w, udpConns, offer)
+					resp(w, 200, "success", encode(answer))
+					go func() {
+						<-stop
+						fmt.Println("退出")
+						dl.Bye()
+					}()
+
+					return
 				}
 
-				answer, stop := do(context.Background(), w, udpConns, offer)
-				resp(w, 200, "success", encode(answer))
-				go func() {
-					<-stop
-					fmt.Println("退出")
-					dl.Hangup()
-				}()
+				if state.State() == dialog.Error {
+					resp(w, 500, state.Reason(), nil)
+					return
+				}
+			}(state)
 
-				return
-			}
-			if state == dialog.Hangup {
-				return
-			}
-			if state == dialog.Error {
-				resp(w, int(dl.StatusCode()), dl.Reason(), nil)
-				return
-			}
 		}
 	}
 }
@@ -233,7 +246,7 @@ func do(ctx context.Context, w http.ResponseWriter, udpConns map[string]*udpConn
 	peerConnection, err := webrtc.NewPeerConnection(webrtc.Configuration{
 		ICEServers: []webrtc.ICEServer{
 			{
-				URLs: []string{"stun:172.20.50.12:3478"},
+				URLs: []string{iceServer},
 			},
 		},
 	})
@@ -321,6 +334,8 @@ func do(ctx context.Context, w http.ResponseWriter, udpConns map[string]*udpConn
 
 func mediaForwarding(peerConnection *webrtc.PeerConnection, udpConns map[string]*udpConn) {
 	if conn, ok := udpConns["video"]; ok {
+		fmt.Println("video track->", fmt.Sprintf("%s:%d", conn.address, conn.port))
+
 		fmt.Println(conn.formats)
 		mimeType := webrtc.MimeTypeVP8
 
@@ -337,12 +352,11 @@ func mediaForwarding(peerConnection *webrtc.PeerConnection, udpConns map[string]
 	}
 
 	if conn, ok := udpConns["audio"]; ok {
+		fmt.Println("audio track->", fmt.Sprintf("%s:%d", conn.address, conn.port))
 		audioTrack, err := webrtc.NewTrackLocalStaticRTP(webrtc.RTPCodecCapability{MimeType: webrtc.MimeTypeOpus}, "audio", "pion")
 		if err != nil {
 			panic(err)
 		}
-
-		fmt.Println("add audio Track ")
 
 		_, err = peerConnection.AddTrack(audioTrack)
 		if err != nil {
@@ -350,4 +364,58 @@ func mediaForwarding(peerConnection *webrtc.PeerConnection, udpConns map[string]
 		}
 		streamMgr.LoadOrCreate(fmt.Sprintf("%s:%d", conn.address, conn.port)).SetWriter(audioTrack)
 	}
+}
+
+func NewStreamMgr(ip string, port int) *StreamMgr {
+	mgr := &StreamMgr{}
+	go mgr.run(ip, port)
+	return mgr
+}
+
+type StreamMgr struct {
+	streams sync.Map
+}
+
+func (mgr *StreamMgr) run(ip string, port int) {
+	fmt.Println("ListenPacket:", fmt.Sprintf("%s:%d", ip, port))
+	conn, err := reuse.ListenPacket("udp", fmt.Sprintf("%s:%d", ip, port))
+	if err != nil {
+		panic(err)
+	}
+
+	buf := make([]byte, 20480)
+	i := 0
+	for {
+		i++
+		n, addr, err := conn.ReadFrom(buf)
+		if err == nil {
+			mgr.LoadOrCreate(addr.String()).write(buf[:n])
+		}
+	}
+}
+
+func (mgr *StreamMgr) LoadOrCreate(address string) *stream {
+	if s, ok := mgr.streams.Load(address); ok {
+		return s.(*stream)
+	}
+	s := &stream{}
+	mgr.streams.Store(address, s)
+	return s
+}
+
+type stream struct {
+	writer io.Writer
+}
+
+func (s *stream) write(buf []byte) {
+	if s.writer != nil {
+		_, err := s.writer.Write(buf)
+		if err != nil {
+			fmt.Println("writer err", err)
+		}
+	}
+}
+
+func (s *stream) SetWriter(writer io.Writer) {
+	s.writer = writer
 }

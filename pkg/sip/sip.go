@@ -76,11 +76,11 @@ func (stack *SipStack) Start(ctx context.Context) {
 		case msg := <-stack.transportChannel:
 			if stack.listener != nil {
 				if resp, ok := msg.(message.Response); ok {
-					go stack.listener.HandleResponses(resp)
+					go stack.listener.HandleResponse(resp)
 					continue
 				}
 				if req, ok := msg.(message.Request); ok {
-					go stack.listener.HandleRequests(req)
+					go stack.listener.HandleRequest(req)
 					continue
 				}
 			}

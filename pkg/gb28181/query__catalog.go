@@ -2,7 +2,6 @@ package gb28181
 
 import (
 	"encoding/xml"
-	"fmt"
 	"time"
 
 	"github.com/go-av/gosip/pkg/server"
@@ -123,24 +122,6 @@ func (g *GB28181) Catalog(body []byte) (*server.Response, error) {
 		return nil, err
 	}
 
-	key := fmt.Sprintf("catalog-%s-%d", cl.DeviceID, cl.SN)
-	cache, ok := g.cache.LoadOrStore(key, &catalogWithCache{})
-	cc := cache.(*catalogWithCache)
-	if !ok {
-		cc.timer = time.NewTimer(10 * time.Second)
-		go func() {
-			<-cc.timer.C
-			g.cache.Delete(key)
-		}()
-		cc.catalog = cl
-	} else {
-		cc.timer.Reset(10 * time.Second)
-		cc.catalog.Item = append(cc.catalog.Item, cl.Item...)
-	}
-
-	if len(cc.catalog.Item) == cl.SumNum {
-		g.handler.Catalog(cc.catalog)
-	}
-
+	g.handler.Catalog(cl)
 	return server.NewResponse(200, "success."), nil
 }

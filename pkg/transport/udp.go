@@ -25,6 +25,7 @@ func (ut *UDPTransport) Read() (message.Message, error) {
 		logrus.Error(err)
 		return nil, err
 	}
+
 	// logrus.Debugf("%s --> %s    %s", addr.String(), ut.address.String(), string(buffer[:n]))
 	fmt.Println("[GOSIP][UDP]", time.Now().Format(time.RFC3339), addr.String(), "  -> ", ut.address.String(), "\n", string(buffer[:n]))
 	msg, err := message.Parse(buffer[:n])

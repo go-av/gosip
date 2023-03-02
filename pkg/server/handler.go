@@ -1,6 +1,9 @@
 package server
 
 import (
+	"context"
+
+	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/message"
 )
 
@@ -25,14 +28,15 @@ type Response struct {
 }
 
 type Handler interface {
-	SetServer(Server)
-	GetClient(user string) (Client, error)
+	GetClient(deviceID string) (Client, error)
 	Realm() string
 	ReceiveMessage(message.Body) (*Response, error)
 }
 
 type Server interface {
 	Send(protocol string, address string, msg message.Message) error
-	SendMessage(client Client, req message.Request) (message.Body, error)
+	SendMessage(client Client, req message.Request) (message.Response, error)
 	ServerAddress() *message.Address
+	Invite(ctx context.Context, from dialog.From, to dialog.To, sdp string, updateMsg func(msg message.Message)) (dialog.Dialog, error) // 呼出
+	Receive() chan dialog.Dialog                                                                                                        // 接收呼叫
 }
