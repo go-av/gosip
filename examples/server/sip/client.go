@@ -95,11 +95,12 @@ a=sendrecv
 				if err != nil {
 					panic(err)
 				}
-				dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, dd.Marshal())
+				dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, "12001", dd.Marshal())
 			} else {
 				_ = sdp1
-				dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, sdp1)
+				dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, "12001", sdp1)
 			}
+
 			if err != nil {
 				panic(err)
 			}
@@ -112,8 +113,8 @@ a=sendrecv
 						fmt.Println("接收状态更新---------", state)
 						if state.State() == dialog.Accepted {
 							fmt.Println("对方已接听:", string(dl.SDP()))
-							time.Sleep(20 * time.Second)
-							dl.Bye()
+							// time.Sleep(20 * time.Second)
+							// dl.Bye()
 						}
 						if state.State() == dialog.Error {
 							fmt.Println("错误:", state.Reason())

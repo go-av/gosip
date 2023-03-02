@@ -27,7 +27,8 @@ func (ut *UDPTransport) Read() (message.Message, error) {
 	}
 
 	// logrus.Debugf("%s --> %s    %s", addr.String(), ut.address.String(), string(buffer[:n]))
-	fmt.Println("[GOSIP][UDP]", time.Now().Format(time.RFC3339), addr.String(), "  -> ", ut.address.String(), "\n", string(buffer[:n]))
+	fmt.Printf("\n\n\n[GOSIP][UDP] %s %s -> %s \n%s", time.Now().Format(time.RFC3339), addr.String(), ut.address.String(), string(buffer[:n]))
+
 	msg, err := message.Parse(buffer[:n])
 	if err != nil {
 		return nil, err
@@ -80,12 +81,11 @@ func (ut *UDPTransport) SetTransportChannel(channel chan message.Message) {
 func (ut *UDPTransport) Send(address string, msg message.Message) error {
 	addr, err := net.ResolveUDPAddr("udp", address)
 	if err != nil {
-		fmt.Println(err)
 		logrus.Error(err)
 		return err
 	}
 
-	fmt.Println("[GOSIP][UDP]", time.Now().Format(time.RFC3339), ut.address.String(), " -> ", addr.String(), "\n", msg.String())
+	fmt.Printf("\n\n\n[GOSIP][UDP] %s %s -> %s \n%s", time.Now().Format(time.RFC3339), ut.address.String(), addr.String(), msg.String())
 
 	conn, err := reuse.Dial("udp", ut.address.String(), addr.String())
 	if err != nil {

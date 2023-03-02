@@ -9,7 +9,8 @@
 - [x] Server
     - [x] GB28181
         - [x] 设备注册
-        - [] 设备控制
+        - [x] 设备控制(PTZ)
+        - [x] Play
 - [x] Client
 
 
@@ -17,7 +18,8 @@
 - [x] 客户端
     - [x] 呼出
     - [x] 呼入
-    - [x] webrtc 与设备对讲
+    - [x] webrtc
+    
 - [x] 服务端
     - [x] GB28181 server
     - [x] PTZCmd

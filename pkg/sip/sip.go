@@ -58,8 +58,6 @@ func (stack *SipStack) Start(ctx context.Context) {
 		stack.listeningPoints.Range(func(key, value any) bool {
 			return true
 		})
-
-		fmt.Println("sip stack  stop")
 	}()
 	stack.listeningPoints.Range(func(key, value any) bool {
 		if lp, ok := value.(transport.ListeningPoint); ok {

@@ -12,7 +12,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type Server interface {
+type Sender interface {
 	Send(protocol string, address string, msg message.Message) error
 }
 
@@ -20,16 +20,19 @@ type Dialog interface {
 	Run(del func(callID string))
 	SDP() []byte
 	DialogID() string
-	Origin() OriginType
 	Context() context.Context
-	State() chan State
+
 	HandleResponse(msg message.Response)
 	HandleRequest(req message.Request)
+
+	State() chan State
+
 	Answer(sdp string) error // 接收
 	Reject() error           // 拒收
+	Bye()                    // 挂断
+
 	From() From
 	To() To
-	Bye()
 }
 
 type State interface {
@@ -58,28 +61,32 @@ const (
 )
 
 type dialog struct {
-	origin   OriginType // 来源方向
-	server   Server
-	from     From
-	to       To
+	origin OriginType // 来源方向
+	sender Sender
+	from   From
+	to     To
+
 	dialogID string
 	branchID string
 
-	ctx     context.Context
-	cancel  context.CancelFunc // 用于取消和关闭
-	timer   *time.Timer
-	sdp     []byte // 对方的 sdp
-	initMsg message.Message
+	ctx    context.Context
+	cancel context.CancelFunc // 用于取消和关闭
+
+	timer *time.Timer
+
+	sdp    []byte // 对方的 sdp
+	invite message.Message
 
 	currentstate *stateWithReason // 当前状态
 	statechan    chan State       // 状态变更
 }
 
-func newDialog(ctx context.Context, origin OriginType, server Server, from From, to To) *dialog {
+func newDialog(ctx context.Context, origin OriginType, sender Sender, from From, to To) *dialog {
+	logrus.Infof("%s call %s", from.User(), to.User())
 	ctx, cancel := context.WithCancel(ctx)
 	dl := &dialog{
 		origin: origin,
-		server: server,
+		sender: sender,
 		from:   from,
 		to:     to,
 		ctx:    ctx,
@@ -95,10 +102,6 @@ func newDialog(ctx context.Context, origin OriginType, server Server, from From,
 
 func (dl *dialog) DialogID() string {
 	return dl.dialogID
-}
-
-func (dl *dialog) Origin() OriginType {
-	return dl.origin
 }
 
 func (dl *dialog) Context() context.Context {
@@ -128,8 +131,8 @@ func (dl *dialog) SDP() []byte {
 }
 
 // 呼叫
-func Invite(ctx context.Context, server Server, from From, to To, sdp []byte, updateMsg func(message.Message)) (Dialog, error) {
-	dl := newDialog(ctx, CallOUT, server, from, to)
+func Invite(ctx context.Context, sender Sender, from From, to To, sdp []byte, updateMsg func(message.Message)) (Dialog, error) {
+	dl := newDialog(ctx, CallOUT, sender, from, to)
 	dl.dialogID = utils.RandString(30)
 	dl.branchID = utils.GenerateBranchID()
 
@@ -151,8 +154,8 @@ func Invite(ctx context.Context, server Server, from From, to To, sdp []byte, up
 	if updateMsg != nil {
 		updateMsg(msg)
 	}
-	dl.initMsg = msg
-	err := dl.server.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), msg)
+	dl.invite = msg
+	err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), msg)
 	if err != nil {
 		return nil, err
 	}
@@ -160,16 +163,16 @@ func Invite(ctx context.Context, server Server, from From, to To, sdp []byte, up
 }
 
 // 接收
-func Receive(server Server, from From, to To, callID string, msg message.Request) (Dialog, error) {
-	dl := newDialog(context.Background(), CallIN, server, from, to)
+func Receive(sender Sender, from From, to To, callID string, msg message.Request) (Dialog, error) {
+	dl := newDialog(context.Background(), CallIN, sender, from, to)
 	dl.dialogID = callID
 	dl.sdp = msg.Body()
-	dl.initMsg = msg
+	dl.invite = msg
 	// todo bandid
-	resp := message.NewResponse(dl.initMsg, 180, "ok")
+	resp := message.NewResponse(dl.invite, 180, "ok")
 	resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().Host)))
 	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
-	err := dl.server.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
+	err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
 	if err != nil {
 		return nil, err
 	}
@@ -192,31 +195,31 @@ func (dl *dialog) HandleResponse(resp message.Response) {
 			switch resp.StatusCode() {
 			case 100:
 				to, _ := resp.To()
-				dl.initMsg.SetHeader(to)
+				dl.invite.SetHeader(to)
 				dl.updateState(Trying, Trying.String())
 			case 180:
 				to, _ := resp.To()
-				dl.initMsg.SetHeader(to)
+				dl.invite.SetHeader(to)
 				dl.updateState(Ringing, Ringing.String())
 			case 200:
 				to, _ := resp.To()
-				dl.initMsg.SetHeader(to)
+				dl.invite.SetHeader(to)
 				dl.timer.Stop()
 				dl.sdp = resp.Body()
 
 				contact, _ := resp.Contact()
-				dl.initMsg.SetHeader(contact)
+				dl.invite.SetHeader(contact)
 				toAddress := message.NewAddress("", contact.Address.Host, contact.Address.Port)
 
 				req := message.NewRequestMessage(dl.from.Protocol(), method.ACK, toAddress.Clone().SetUser(dl.to.User()))
-				message.CopyHeaders(dl.initMsg, req, "Max-Forwards", "Call-ID", "From", "To")
+				message.CopyHeaders(dl.invite, req, "Max-Forwards", "Call-ID", "From", "To")
 				req.AppendHeader(
 					message.NewViaHeader(dl.from.Protocol(), contact.Address.Host, contact.Address.Port, message.NewParams().Set("branch", dl.branchID).Set("rport", "")),
 					message.NewCSeqHeader(cseq.SeqNo, method.ACK),
 					message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.to.HostAndPort().String())),
 				)
 
-				err := dl.server.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
+				err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
 				if err != nil {
 					logrus.Error(err)
 				}
@@ -232,7 +235,7 @@ func (dl *dialog) HandleResponse(resp message.Response) {
 						message.NewMaxForwardsHeader(70),
 						message.NewCSeqHeader(10, method.ACK),
 					)
-					err := dl.server.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
+					err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
 					if err != nil {
 						logrus.Error(err)
 					}
@@ -276,7 +279,7 @@ func (dl *dialog) HandleRequest(req message.Request) {
 		)
 
 		resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
-		err := dl.server.Send(dl.from.Protocol(), addr.String(), resp)
+		err := dl.sender.Send(dl.from.Protocol(), addr.String(), resp)
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -284,7 +287,7 @@ func (dl *dialog) HandleRequest(req message.Request) {
 		dl.cancel()
 	case method.CANCEL:
 		resp := message.NewResponse(req, 200, "success.")
-		err := dl.server.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), resp)
+		err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), resp)
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -298,12 +301,12 @@ func (dl *dialog) HandleRequest(req message.Request) {
 		if dl.origin == CallIN {
 			addr = dl.from.HostAndPort().String()
 		}
-		err := dl.server.Send(dl.from.Protocol(), addr, resp)
+		err := dl.sender.Send(dl.from.Protocol(), addr, resp)
 		if err != nil {
 			logrus.Error(err)
 		}
 	default:
-		fmt.Println("收到的消息未处理", req.Method())
+		logrus.Debugf("收到的%s消息未处理", req.Method())
 	}
 }
 
@@ -325,7 +328,7 @@ func (dl *dialog) updateState(state DialogState, reason string) {
 
 func (dl *dialog) Run(del func(callID string)) {
 	defer func() {
-		fmt.Println("会话 ", dl.dialogID, "关闭")
+		logrus.Infof("%s call %s 结束", dl.from.User(), dl.to.User())
 		del(dl.dialogID)
 	}()
 
@@ -336,12 +339,12 @@ func (dl *dialog) Run(del func(callID string)) {
 				// 取消请求
 				fromAddress := message.NewAddress("", dl.from.HostAndPort().Host, dl.from.HostAndPort().Port)
 				req := message.NewRequestMessage(dl.from.Protocol(), method.CANCEL, fromAddress.Clone().SetUser(dl.to.User()))
-				message.CopyHeaders(dl.initMsg, req, "Via", "Call-ID", "From", "To")
+				message.CopyHeaders(dl.invite, req, "Via", "Call-ID", "From", "To")
 				req.AppendHeader(
 					message.NewMaxForwardsHeader(70),
 					message.NewCSeqHeader(10, method.ACK),
 				)
-				err := dl.server.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
+				err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
 				if err != nil {
 					logrus.Error(err)
 				}
@@ -351,9 +354,9 @@ func (dl *dialog) Run(del func(callID string)) {
 				}
 			}
 			if dl.origin == CallIN && dl.currentstate.state < Accepted {
-				resp := message.NewResponse(dl.initMsg, 486, "Busy Here")
+				resp := message.NewResponse(dl.invite, 486, "Busy Here")
 				resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
-				err := dl.server.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
+				err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
 				if err != nil {
 					logrus.Error(err)
 				}
@@ -373,12 +376,12 @@ func (dl *dialog) Answer(sdp string) error {
 	}
 	dl.timer.Reset(10 * time.Second)
 
-	resp := message.NewResponse(dl.initMsg, 200, "success.")
+	resp := message.NewResponse(dl.invite, 200, "success.")
 	resp.SetBody(string(message.ContentType__SDP), []byte(sdp))
 	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
 	resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().Host)))
 
-	err := dl.server.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
+	err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
 	if err != nil {
 		logrus.Error(err)
 		return err
@@ -397,8 +400,8 @@ func (dl *dialog) Reject() error {
 		return errors.New("非法操作")
 	}
 	dl.timer.Reset(10 * time.Second)
-	resp := message.NewResponse(dl.initMsg, 603, "Decline")
-	err := dl.server.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
+	resp := message.NewResponse(dl.invite, 603, "Decline")
+	err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
 	if err != nil {
 		logrus.Error(err)
 		return err
@@ -409,16 +412,16 @@ func (dl *dialog) Reject() error {
 func (dl *dialog) Bye() {
 	dl.timer.Reset(10 * time.Second)
 	if dl.origin == CallOUT {
-		contact, _ := dl.initMsg.Contact()
+		contact, _ := dl.invite.Contact()
 		toAddress := message.NewAddress(dl.to.User(), contact.Address.Host, contact.Address.Port)
 		req := message.NewRequestMessage(dl.from.Protocol(), method.BYE, toAddress)
-		message.CopyHeaders(dl.initMsg, req, "Max-Forwards", "Call-ID", "From", "To")
+		message.CopyHeaders(dl.invite, req, "Max-Forwards", "Call-ID", "From", "To")
 		req.AppendHeader(
 			message.NewViaHeader(dl.from.Protocol(), contact.Address.Host, contact.Address.Port, message.NewParams().Set("branch", dl.branchID).Set("rport", "")),
 			message.NewCSeqHeader(12, method.BYE),
 			message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.to.HostAndPort().String())),
 		)
-		err := dl.server.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
+		err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -426,24 +429,24 @@ func (dl *dialog) Bye() {
 	}
 
 	if dl.origin == CallIN {
-		contact, _ := dl.initMsg.Contact()
+		contact, _ := dl.invite.Contact()
 
 		toAddress := message.NewAddress(dl.from.User(), contact.Address.Host, contact.Address.Port)
 		req := message.NewRequestMessage(dl.from.Protocol(), method.BYE, toAddress)
-		message.CopyHeaders(dl.initMsg, req, "Max-Forwards", "Call-ID", "From", "To")
+		message.CopyHeaders(dl.invite, req, "Max-Forwards", "Call-ID", "From", "To")
 		req.AppendHeader(
 			message.NewViaHeader(dl.from.Protocol(), dl.From().HostAndPort().Host, dl.From().HostAndPort().Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 			message.NewCSeqHeader(21, method.BYE),
 			message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().String())),
 		)
 
-		to, _ := dl.initMsg.To()
-		from, _ := dl.initMsg.From()
+		to, _ := dl.invite.To()
+		from, _ := dl.invite.From()
 
 		req.SetHeader(message.NewFromHeader(to.DisplayName, to.Address.Clone(), to.Params))
 		req.SetHeader(message.NewToHeader(from.DisplayName, from.Address.Clone(), from.Params))
 
-		err := dl.server.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), req)
+		err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), req)
 		if err != nil {
 			logrus.Error(err)
 		}

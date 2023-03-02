@@ -31,7 +31,7 @@ func (tt *TCPTransport) readConn(conn net.Conn) error {
 			logrus.Error(err)
 			return err
 		}
-		fmt.Println("[GOSIP][TCP]", time.Now().Format(time.RFC3339), conn.RemoteAddr().String(), "  -> ", conn.LocalAddr().String(), "\n", string(buffer[:n]))
+		fmt.Printf("\n\n\n[GOSIP][TCP] %s %s -> %s \n %s", time.Now().Format(time.RFC3339), conn.RemoteAddr().String(), conn.LocalAddr().String(), string(buffer[:n]))
 		msg, err := message.Parse(buffer[:n])
 		if err != nil {
 			logrus.Error(err)
@@ -88,7 +88,7 @@ func (tt *TCPTransport) Build(addr string) error {
 }
 
 func (tt *TCPTransport) Send(address string, msg message.Message) error {
-	fmt.Println("[GOSIP][TCP]", time.Now().Format(time.RFC3339), tt.listener.Addr().String(), "-> ", address, "\n", msg.String())
+	fmt.Printf("\n\n\n[GOSIP][TCP] %s %s -> %s \n %s", time.Now().Format(time.RFC3339), tt.listener.Addr().String(), address, msg.String())
 	conn, ok := tt.connTable.Load(address)
 	if !ok {
 		baseConn, err := reuse.Dial("tcp", tt.listener.Addr().String(), address)

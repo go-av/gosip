@@ -57,7 +57,7 @@ func NewClient(displayName string, user string, password string, protocol string
 }
 
 func (client *Client) Start(ctx context.Context, address string) error {
-	fmt.Println("reg ", address)
+	logrus.Infof("client %s registrar %s", client.user, address)
 
 	addr, err := utils.ParseHostAndPort(address)
 	if err != nil {
@@ -163,7 +163,7 @@ func (client *Client) HandleRequest(req message.Request) {
 			resp = message.NewResponse(req, 400, "Bad Request:"+"会话已经存在！")
 			err := client.Send(client.protocol, client.serverAddr.String(), resp)
 			if err != nil {
-				logrus.Error(err)
+				logrus.Errorf("%s send error: %s", client.user, err)
 			}
 			return
 		}
@@ -248,9 +248,7 @@ func (client *Client) HandleResponse(resp message.Response) {
 			dl.HandleResponse(resp)
 		}
 	default:
-		fmt.Println("\n ====== 未处理 ======")
-		fmt.Println(resp.String())
-		fmt.Println(" ====== 未处理 ======")
+		logrus.Debugf("Client 消息 %s 未处理", resp.String())
 	}
 }
 

@@ -2,7 +2,6 @@ package gb28181
 
 import (
 	"encoding/xml"
-	"fmt"
 	"strings"
 
 	"github.com/go-av/gosip/pkg/message"
@@ -69,7 +68,6 @@ func (g *GB28181) SendMessage(client server.Client, data any) (message.Response,
 	protocol, address := client.Transport()
 
 	hostAndPort, _ := utils.ParseHostAndPort(address)
-	// clientAddress := message.NewAddress(client.User(), hostAndPort.Host, hostAndPort.Port)
 	clientAddress := message.NewAddress(client.User(), hostAndPort.Host, hostAndPort.Port).WithDomain(g.handler.Realm())
 	msg := message.NewRequestMessage(protocol, method.MESSAGE, clientAddress)
 	msg.AppendHeader(
@@ -84,7 +82,6 @@ func (g *GB28181) SendMessage(client server.Client, data any) (message.Response,
 	if en, ok := client.(ClientEncodingFormat); ok {
 		switch strings.ToLower(en.EncodingFormat()) {
 		case "gb2312", "gbk":
-			fmt.Println("gb2312")
 			msg.SetBody(string(message.ContentType__MANSCDP_XML), append([]byte("<?xml version=\"1.0\" encoding=\"GBK\"?>\r\n"), content...))
 		default:
 			msg.SetBody(string(message.ContentType__MANSCDP_XML), append([]byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n"), content...))

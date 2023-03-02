@@ -1,9 +1,8 @@
 package sdp
 
 import (
-	"fmt"
-
 	"github.com/pion/sdp/v3"
+	"github.com/sirupsen/logrus"
 )
 
 func ParseSDP(str []byte) (*SDP, error) {
@@ -28,7 +27,7 @@ func (SDP) ContentType() string {
 func (sd *SDP) Body() []byte {
 	data, err := (*sdp.SessionDescription)(sd).Marshal()
 	if err != nil {
-		fmt.Println("errr", err)
+		logrus.Error(err)
 		return nil
 	}
 	return data
@@ -37,7 +36,7 @@ func (sd *SDP) Body() []byte {
 func (sd *SDP) Marshal() string {
 	data, err := (*sdp.SessionDescription)(sd).Marshal()
 	if err != nil {
-		fmt.Println("errr", err)
+		logrus.Error(err)
 		return ""
 	}
 	return string(data)

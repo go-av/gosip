@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/go-av/gosip/pkg/authentication"
 	"github.com/go-av/gosip/pkg/dialog"
 	"github.com/go-av/gosip/pkg/message"
@@ -104,8 +103,6 @@ func (s *server) HandleRequest(req message.Request) {
 
 		auth := authentication.Parse(authheader.Value())
 		if auth.Response() != auth.Clone().Auth(auth.Username(), client.Password(), string(req.Method()), auth.Uri()).Response() {
-			spew.Dump(auth)
-			fmt.Println(auth.Clone().Auth(auth.Username(), client.Password(), string(req.Method()), auth.Uri()).String())
 			resp := message.NewResponse(req, 403, "Password Error")
 			s.stack.Send(protocol, adddress, resp)
 			return
@@ -208,9 +205,7 @@ func (s *server) HandleRequest(req message.Request) {
 		}
 		s.stack.Send(protocol, adddress, resp)
 	default:
-		fmt.Println("-----------==========-----------")
-		fmt.Println("---------", req.Method(), "-----------")
-		fmt.Println("-----------==========-----------")
+		logrus.Debugf("Server Req %s 未处理", req.Method())
 		resp := message.NewResponse(req, 200, "OK")
 		s.stack.Send(protocol, adddress, resp)
 	}
@@ -247,7 +242,7 @@ func (s *server) HandleResponse(resp message.Response) {
 		}
 
 	default:
-		fmt.Println(cseq.Method, resp.StartLine(), "暂未处理")
+		logrus.Debugf("Server %s %s 未处理", cseq.Method, resp.StartLine())
 	}
 }
 
