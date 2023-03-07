@@ -16,20 +16,20 @@ type UDPTransport struct {
 	address          *net.UDPAddr
 	Connection       net.PacketConn
 	transportChannel chan message.Message
+	buffer           []byte
 }
 
 func (ut *UDPTransport) Read() (message.Message, error) {
-	buffer := make([]byte, 2048)
-	n, addr, err := ut.Connection.ReadFrom(buffer)
+	n, addr, err := ut.Connection.ReadFrom(ut.buffer)
 	if err != nil {
 		logrus.Error(err)
 		return nil, err
 	}
 
 	// logrus.Debugf("%s --> %s    %s", addr.String(), ut.address.String(), string(buffer[:n]))
-	fmt.Printf("\n\n\n[GOSIP][UDP] %s %s -> %s \n%s", time.Now().Format(time.RFC3339), addr.String(), ut.address.String(), string(buffer[:n]))
+	fmt.Printf("\n\n\n[GOSIP][UDP] %s %s -> %s \n%s", time.Now().Format(time.RFC3339), addr.String(), ut.address.String(), string(ut.buffer[:n]))
 
-	msg, err := message.Parse(buffer[:n])
+	msg, err := message.Parse(ut.buffer[:n])
 	if err != nil {
 		return nil, err
 	}
@@ -64,6 +64,7 @@ func (ut *UDPTransport) Build(addr string) error {
 }
 
 func (ut *UDPTransport) Start() {
+	ut.buffer = make([]byte, 20480)
 	logrus.Info("Starting UDP Listening Point ")
 	for {
 		msg, err := ut.Read()

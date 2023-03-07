@@ -18,12 +18,12 @@ type TCPTransport struct {
 	listener         net.Listener
 	transportChannel chan message.Message
 	connTable        *sync.Map
+	buffer           []byte
 }
 
 func (tt *TCPTransport) readConn(conn net.Conn) error {
-	buffer := make([]byte, 2048)
 	for {
-		n, err := conn.Read(buffer)
+		n, err := conn.Read(tt.buffer)
 		if err != nil {
 			if err == io.EOF {
 				return err
@@ -31,8 +31,8 @@ func (tt *TCPTransport) readConn(conn net.Conn) error {
 			logrus.Error(err)
 			return err
 		}
-		fmt.Printf("\n\n\n[GOSIP][TCP] %s %s -> %s \n %s", time.Now().Format(time.RFC3339), conn.RemoteAddr().String(), conn.LocalAddr().String(), string(buffer[:n]))
-		msg, err := message.Parse(buffer[:n])
+		fmt.Printf("\n\n\n[GOSIP][TCP] %s %s -> %s \n %s", time.Now().Format(time.RFC3339), conn.RemoteAddr().String(), conn.LocalAddr().String(), string(tt.buffer[:n]))
+		msg, err := message.Parse(tt.buffer[:n])
 		if err != nil {
 			logrus.Error(err)
 		}
@@ -59,6 +59,7 @@ func (tt *TCPTransport) Read() error {
 }
 
 func (tt *TCPTransport) Start() {
+	tt.buffer = make([]byte, 20480)
 	logrus.Info("Starting TCP Listening Point")
 	for {
 		tt.Read()

@@ -31,6 +31,5 @@ func (g *GB28181) Keepalive(body []byte) (*server.Response, error) {
 	if err := utils.XMLDecode(body, kl); err != nil {
 		return nil, err
 	}
-
 	return g.handler.Keepalive(kl)
 }

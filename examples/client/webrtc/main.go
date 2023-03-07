@@ -224,7 +224,7 @@ func call(w http.ResponseWriter, r *http.Request) {
 				go func() {
 					<-stop
 					fmt.Println("退出")
-					dl.Bye()
+					// dl.Bye()
 				}()
 				return
 			}

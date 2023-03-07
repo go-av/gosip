@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/go-av/gosip/pkg/dialog"
-	"github.com/go-av/gosip/pkg/sdp"
 )
 
 type Client struct {
@@ -58,48 +57,21 @@ o=71020001001320000001 0 0 IN IP4 172.20.30.61
 s=Play
 c=IN IP4 172.20.30.61
 t=0 0
-m=video 40026 RTP/AVP 96 97 98
+m=video 35000 RTP/AVP 96 97 98
 a=recvonly
 a=rtpmap:96 PS/90000
 a=rtpmap:97 MPEG4/90000
 a=rtpmap:98 H264/90000
 y=0200010001
 `
-
-			sdp2 := `v=0
-o=- 3868331676 3868331676 IN IP4 172.20.30.61
-s=gosip 1.0.0
-t=0 0
-m=audio 40026 RTP/AVP 8 0 101
-c=IN IP4 172.20.30.61
-a=rtcp:50007
-a=rtpmap:8 PCMA/8000
-a=rtpmap:0 PCMU/8000
-a=rtpmap:101 telephone-event/8000
-m=video 40026 RTP/AVP 96
-c=IN IP4 172.20.30.61
-a=rtcp:50009
-a=rtpmap:96 VP8/90000
-a=sendrecv
-`
-
 			deviceID := c.user
-			deviceID = "71020001001320000001"
+			// deviceID = "71020001001320000001"
 			var (
 				dl  dialog.Dialog
 				err error
 			)
-			if c.user == "9527" {
-				_ = sdp2
-				dd, err := sdp.ParseSDP([]byte(sdp2))
-				if err != nil {
-					panic(err)
-				}
-				dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, "12001", dd.Marshal())
-			} else {
-				_ = sdp1
-				dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, "12001", sdp1)
-			}
+
+			dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, "12001", sdp1)
 
 			if err != nil {
 				panic(err)
@@ -123,9 +95,7 @@ a=sendrecv
 				}
 			}
 
-			fmt.Println("认证完成")
-			// time.Sleep(2 * time.Second)
-			// // // 预制点位调试
+			// 预制点位调试
 			// all := []ptz.PTZ_Type{ptz.Right, ptz.Left, ptz.Left, ptz.Up, ptz.Down, ptz.LeftUp, ptz.LeftDown, ptz.RightUp, ptz.RightDown, ptz.Stop}
 			// for _, a := range all {
 			// 	fmt.Println("方位调整", string(a))
@@ -133,7 +103,6 @@ a=sendrecv
 			// 	time.Sleep(5 * time.Second)
 			// }
 
-			// c.server.gb28181.PTZControl(c, deviceID, ptz.PTZCmd(ptz.Left, 0, 1))
 			time.Sleep(3 * time.Second)
 			c.server.gb28181.GetPresetQuery(c, deviceID)
 			// fmt.Println("调用预制点位")
