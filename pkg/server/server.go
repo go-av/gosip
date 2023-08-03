@@ -159,6 +159,9 @@ func (s *server) HandleRequest(req message.Request) {
 		if v, ok := s.dialog.Load(callID.Value()); ok {
 			dl := v.(dialog.Dialog)
 			dl.HandleRequest(req)
+		} else {
+			resp := message.NewResponse(req, 200, "success")
+			_ = s.Send(protocol, adddress, resp)
 		}
 
 	case method.REGISTER:

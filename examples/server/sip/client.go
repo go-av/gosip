@@ -52,6 +52,7 @@ func (c *Client) SetAuth(auth bool) error {
 			// 	// c.server.gb28181.GetDeviceStatus(c, deviceID)
 			// 	// c.server.gb28181.GetDeviceConfig(c, deviceID)
 			// }
+
 			sdp1 := `v=0
 o=71020001001320000001 0 0 IN IP4 172.20.30.61
 s=Play
@@ -63,6 +64,12 @@ a=rtpmap:96 PS/90000
 a=rtpmap:97 MPEG4/90000
 a=rtpmap:98 H264/90000
 y=0200010001
+m=audio 35002 RTP/AVP 111 0 8
+a=rtpmap:111 opus/48000/2
+a=rtpmap:0 PCMU/8000
+a=rtpmap:8 PCMA/8000
+a=mid:audio
+a=sendrecv
 `
 			deviceID := c.user
 			// deviceID = "71020001001320000001"
@@ -71,7 +78,7 @@ y=0200010001
 				err error
 			)
 
-			dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, "12001", sdp1)
+			dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, 12001, sdp1)
 
 			if err != nil {
 				panic(err)

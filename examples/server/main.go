@@ -12,7 +12,7 @@ import (
 
 func main() {
 	ip := flag.String("ip", utils.LocalIp(), "监听地址")
-	port := flag.Uint64("port", 25060, "监听端口")
+	port := flag.Uint64("port", 5060, "监听端口")
 	flag.Parse()
 	ctx := context.Background()
 	handler := sip.NewSipHandler("99920000002000000000", "99999999")
