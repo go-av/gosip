@@ -90,7 +90,7 @@ func (ut *UDPTransport) Send(address string, msg message.Message) error {
 
 	conn, err := reuse.Dial("udp", ut.address.String(), addr.String())
 	if err != nil {
-		logrus.Error("Some error %v", err)
+		logrus.Errorf("Some error %v", err)
 		return err
 	}
 	defer conn.Close()

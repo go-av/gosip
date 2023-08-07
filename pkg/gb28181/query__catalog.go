@@ -116,12 +116,12 @@ func (g *GB28181) GetCatalog(client server.Client) (int64, error) {
 	return sn, nil
 }
 
-func (g *GB28181) Catalog(body []byte) (*server.Response, error) {
+func (g *GB28181) Catalog(client server.Client, body []byte) (*server.Response, error) {
 	cl := &Catalog{}
 	if err := utils.XMLDecode(body, cl); err != nil {
 		return nil, err
 	}
 
-	g.handler.Catalog(cl)
+	g.handler.Catalog(client, cl)
 	return server.NewResponse(200, "success."), nil
 }

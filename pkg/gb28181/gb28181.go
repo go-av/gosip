@@ -27,7 +27,7 @@ type GB28181 struct {
 	handler GB28181Handler
 }
 
-func (g *GB28181) Handler(body []byte) (*server.Response, error) {
+func (g *GB28181) Handler(client server.Client, body []byte) (*server.Response, error) {
 	if body == nil {
 		return nil, nil
 	}
@@ -39,17 +39,19 @@ func (g *GB28181) Handler(body []byte) (*server.Response, error) {
 
 	switch message.CmdType {
 	case CmdType__Catalog:
-		return g.Catalog(body)
+		return g.Catalog(client, body)
 	case CmdType__Keepalive:
-		return g.Keepalive(body)
+		return g.Keepalive(client, body)
 	case CmdType__DeviceInfo:
-		return g.DeviceInfo(body)
+		return g.DeviceInfo(client, body)
 	case CmdType__DeviceStatus:
-		return g.DeviceStatus(body)
+		return g.DeviceStatus(client, body)
 	case CmdType__PresetQuery:
-		return g.PresetQuery(body)
+		return g.PresetQuery(client, body)
 	case CmdType__ConfigDownload:
-		return g.ConfigDownload(body)
+		return g.ConfigDownload(client, body)
+	case CmdType__Broadcast:
+		return g.Broadcast(client, body)
 	}
 
 	return server.NewResponse(200, "success."), nil

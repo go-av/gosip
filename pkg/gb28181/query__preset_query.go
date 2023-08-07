@@ -77,11 +77,11 @@ func (g *GB28181) GetPresetQuery(client server.Client, deviceID string) (int64, 
 	return sn, nil
 }
 
-func (g *GB28181) PresetQuery(body []byte) (*server.Response, error) {
+func (g *GB28181) PresetQuery(client server.Client, body []byte) (*server.Response, error) {
 	presetQuery := &PresetQuery{}
 	if err := utils.XMLDecode(body, presetQuery); err != nil {
 		return nil, err
 	}
 
-	return g.handler.PresetQuery(presetQuery)
+	return g.handler.PresetQuery(client, presetQuery)
 }

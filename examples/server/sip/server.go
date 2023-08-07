@@ -86,9 +86,9 @@ func (d *SipHandler) ServerSIPID() string {
 	return d.sipID
 }
 
-func (d *SipHandler) ReceiveMessage(body message.Body) (*server.Response, error) {
+func (d *SipHandler) ReceiveMessage(client server.Client, body message.Body) (*server.Response, error) {
 	if body.ContentType() == "Application/MANSCDP+xml" {
-		return d.gb28181.Handler(body.Data())
+		return d.gb28181.Handler(client, body.Data())
 	}
 	return server.NewResponse(400, "unknown"), nil
 }

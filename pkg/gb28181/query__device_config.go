@@ -42,7 +42,7 @@ func (g *GB28181) GetDeviceConfig(client server.Client, deviceID string) (int64,
 	return sn, nil
 }
 
-func (g *GB28181) ConfigDownload(body []byte) (*server.Response, error) {
+func (g *GB28181) ConfigDownload(client server.Client, body []byte) (*server.Response, error) {
 	fmt.Println("xxxxxxxxxxx")
 	fmt.Println(string(body))
 	fmt.Println("xxxxxxxxxxx")

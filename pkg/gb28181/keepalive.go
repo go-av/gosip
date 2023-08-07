@@ -26,10 +26,10 @@ type Keepalive struct {
 	InfoDeviceIDs []string `xml:"Info>DeviceID"`
 }
 
-func (g *GB28181) Keepalive(body []byte) (*server.Response, error) {
+func (g *GB28181) Keepalive(client server.Client, body []byte) (*server.Response, error) {
 	kl := &Keepalive{}
 	if err := utils.XMLDecode(body, kl); err != nil {
 		return nil, err
 	}
-	return g.handler.Keepalive(kl)
+	return g.handler.Keepalive(client, kl)
 }

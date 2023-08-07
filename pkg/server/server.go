@@ -192,7 +192,7 @@ func (s *server) HandleRequest(req message.Request) {
 		if !ok {
 			return
 		}
-		response, err := s.handler.ReceiveMessage(message.NewBody(contentTypeHeader.Value(), req.Body()))
+		response, err := s.handler.ReceiveMessage(client, message.NewBody(contentTypeHeader.Value(), req.Body()))
 		if err != nil {
 			logrus.Error(err)
 			return

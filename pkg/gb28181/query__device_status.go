@@ -50,10 +50,10 @@ func (g *GB28181) GetDeviceStatus(client server.Client, deviceID string) (int64,
 	return sn, nil
 }
 
-func (g *GB28181) DeviceStatus(body []byte) (*server.Response, error) {
+func (g *GB28181) DeviceStatus(client server.Client, body []byte) (*server.Response, error) {
 	deviceStatus := &DeviceStatus{}
 	if err := utils.XMLDecode(body, deviceStatus); err != nil {
 		return nil, err
 	}
-	return g.handler.DeviceStatus(deviceStatus)
+	return g.handler.DeviceStatus(client, deviceStatus)
 }
