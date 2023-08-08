@@ -226,7 +226,7 @@ func (dl *dialog) HandleResponse(resp message.Response) {
 
 				dl.updateState(Accepted, Accepted.String())
 			default:
-				if resp.StatusCode() > 400 {
+				if resp.StatusCode() >= 400 {
 					// 收到错误信息时，返回 ACK.
 					fromAddress := message.NewAddress("", dl.from.HostAndPort().Host, dl.from.HostAndPort().Port)
 					req := message.NewRequestMessage(dl.from.Protocol(), method.ACK, fromAddress.Clone().SetUser(dl.to.User()))
