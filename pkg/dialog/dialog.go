@@ -21,6 +21,7 @@ type Dialog interface {
 	SDP() []byte
 	DialogID() string
 	Context() context.Context
+	Headers() []message.Header
 
 	HandleResponse(msg message.Response)
 	HandleRequest(req message.Request)
@@ -114,6 +115,10 @@ func (dl *dialog) From() From {
 
 func (dl *dialog) To() To {
 	return dl.to
+}
+
+func (dl *dialog) Headers() []message.Header {
+	return dl.invite.Headers()
 }
 
 // 状态变化通知

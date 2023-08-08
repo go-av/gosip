@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-av/gosip/pkg/dialog"
+	"github.com/go-av/gosip/pkg/message"
 )
 
 type Client struct {
@@ -78,7 +79,8 @@ a=sendrecv
 				err error
 			)
 
-			dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, 12001, sdp1)
+			dl, err = c.server.gb28181.Invite(context.Background(), c, deviceID, sdp1, func(msg message.Message) {
+			})
 
 			if err != nil {
 				panic(err)
