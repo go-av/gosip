@@ -23,12 +23,12 @@ type BroadcastResponse struct {
 	Result   string   `xml:"Result"`
 }
 
-func (g *GB28181) StartBroadcast(client server.Client, targetID string) (int64, error) {
+func (g *GB28181) StartBroadcast(client server.Client, sourceID string, targetID string) (int64, error) {
 	sn := time.Now().Unix()
 	_, err := g.SendMessage(client, &Broadcast{
 		CmdType:  CmdType__Broadcast,
 		SN:       sn,
-		SourceID: g.handler.ServerSIPID(),
+		SourceID: sourceID,
 		TargetID: targetID,
 	})
 

@@ -231,31 +231,35 @@ func (dl *dialog) HandleResponse(resp message.Response) {
 
 				dl.updateState(Accepted, Accepted.String())
 			default:
-				if resp.StatusCode() >= 400 {
-					// 收到错误信息时，返回 ACK.
-					fromAddress := message.NewAddress("", dl.from.HostAndPort().Host, dl.from.HostAndPort().Port)
-					req := message.NewRequestMessage(dl.from.Protocol(), method.ACK, fromAddress.Clone().SetUser(dl.to.User()))
-					message.CopyHeaders(resp, req, "Via", "Call-ID", "From", "To")
-					req.AppendHeader(
-						message.NewMaxForwardsHeader(70),
-						message.NewCSeqHeader(10, method.ACK),
-					)
-					err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
-					if err != nil {
-						logrus.Error(err)
-					}
-					msg := resp.Reason()
-					vals := resp.GetHeaders("Warning")
-					if vals != nil {
-						warningHeader, ok := vals[0].(*message.WarningHeader)
-						if ok {
-							msg += "(" + warningHeader.Value() + ")"
-						}
-					}
-					dl.updateState(Error, fmt.Sprintf("code:%d msg:%s", resp.StatusCode(), msg))
+				// status code < 400
+				if resp.StatusCode() < 400 {
+					return
 				}
+
+				// 收到错误信息时，返回 ACK.
+				fromAddress := message.NewAddress("", dl.from.HostAndPort().Host, dl.from.HostAndPort().Port)
+				req := message.NewRequestMessage(dl.from.Protocol(), method.ACK, fromAddress.Clone().SetUser(dl.to.User()))
+				message.CopyHeaders(resp, req, "Via", "Call-ID", "From", "To")
+				req.AppendHeader(
+					message.NewMaxForwardsHeader(70),
+					message.NewCSeqHeader(10, method.ACK),
+				)
+				err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
+				if err != nil {
+					logrus.Error(err)
+				}
+				msg := resp.Reason()
+				vals := resp.GetHeaders("Warning")
+				if vals != nil {
+					warningHeader, ok := vals[0].(*message.WarningHeader)
+					if ok {
+						msg += "(" + warningHeader.Value() + ")"
+					}
+				}
+				dl.updateState(Error, fmt.Sprintf("code:%d msg:%s", resp.StatusCode(), msg))
 				dl.cancel()
 			}
+
 		case method.ACK:
 
 		case method.BYE:
