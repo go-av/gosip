@@ -303,7 +303,6 @@ func (dl *dialog) HandleRequest(req message.Request) {
 
 		dl.cancel()
 	case method.ACK:
-		dl.updateState(Accepted, Accepted.String())
 		dl.timer.Stop()
 		resp := message.NewResponse(req, 200, "success.")
 		addr := dl.to.HostAndPort().String()
@@ -313,7 +312,9 @@ func (dl *dialog) HandleRequest(req message.Request) {
 		err := dl.sender.Send(dl.from.Protocol(), addr, resp)
 		if err != nil {
 			logrus.Error(err)
+			return
 		}
+		dl.updateState(Accepted, Accepted.String())
 	default:
 		logrus.Debugf("收到的%s消息未处理", req.Method())
 	}
@@ -384,11 +385,10 @@ func (dl *dialog) Answer(sdp string) error {
 		return errors.New("非法操作")
 	}
 	dl.timer.Reset(10 * time.Second)
-
 	resp := message.NewResponse(dl.invite, 200, "success.")
 	resp.SetBody(string(message.ContentType__SDP), []byte(sdp))
 	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
-	resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().Host)))
+	// resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().Host)))
 
 	err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
 	if err != nil {

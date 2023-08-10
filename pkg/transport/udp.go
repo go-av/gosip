@@ -27,7 +27,7 @@ func (ut *UDPTransport) Read() (message.Message, error) {
 	}
 
 	// logrus.Debugf("%s --> %s    %s", addr.String(), ut.address.String(), string(buffer[:n]))
-	fmt.Printf("\n\n\n[GOSIP][UDP] %s %s -> %s \n%s", time.Now().Format(time.RFC3339), addr.String(), ut.address.String(), string(ut.buffer[:n]))
+	fmt.Printf("\n\n\n[GOSIP][UDP] %s %s <<--- %s \n%s\n", time.Now().Format(time.RFC3339), ut.address.String(), addr.String(), string(ut.buffer[:n]))
 
 	msg, err := message.Parse(ut.buffer[:n])
 	if err != nil {
@@ -86,7 +86,7 @@ func (ut *UDPTransport) Send(address string, msg message.Message) error {
 		return err
 	}
 
-	fmt.Printf("\n\n\n[GOSIP][UDP] %s %s -> %s \n%s", time.Now().Format(time.RFC3339), ut.address.String(), addr.String(), msg.String())
+	fmt.Printf("\n\n\n[GOSIP][UDP] %s %s --->> %s \n%s\n", time.Now().Format(time.RFC3339), ut.address.String(), addr.String(), msg.String())
 
 	conn, err := reuse.Dial("udp", ut.address.String(), addr.String())
 	if err != nil {
