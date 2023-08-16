@@ -1,14 +1,18 @@
 package gb28181
 
-import "github.com/go-av/gosip/pkg/server"
+import (
+	"context"
+
+	"github.com/go-av/gosip/pkg/server"
+)
 
 type GB28181Handler interface {
-	Keepalive(server.Client, *Keepalive) (*server.Response, error)
-	DeviceInfo(client server.Client, msg *DeviceInfo) (*server.Response, error)
-	DeviceStatus(client server.Client, msg *DeviceStatus) (*server.Response, error)
-	PresetQuery(client server.Client, msg *PresetQuery) (*server.Response, error)
-	Catalog(server.Client, *Catalog) error
+	Keepalive(context.Context, server.Client, *Keepalive) (*server.Response, error)
+	DeviceInfo(ctx context.Context, client server.Client, msg *DeviceInfo) (*server.Response, error)
+	DeviceStatus(ctx context.Context, client server.Client, msg *DeviceStatus) (*server.Response, error)
+	PresetQuery(ctx context.Context, client server.Client, msg *PresetQuery) (*server.Response, error)
+	Catalog(context.Context, server.Client, *Catalog) error
 	Realm() string
 	ServerSIPID() string
-	Broadcast(client server.Client, msg *BroadcastResponse)
+	Broadcast(ctx context.Context, client server.Client, msg *BroadcastResponse)
 }

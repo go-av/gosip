@@ -85,7 +85,7 @@ func main() {
 	flag.Parse()
 	iceServer = *ice
 	var err error
-	sipClient, err = client.NewClient(*userName, *displayName, *password, *protocol, *localAddr)
+	sipClient, err = client.NewClient(*userName, *displayName, *password, *protocol, *localAddr, nil)
 	if err != nil {
 		panic(err)
 	}

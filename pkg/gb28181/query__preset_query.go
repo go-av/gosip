@@ -1,6 +1,7 @@
 package gb28181
 
 import (
+	"context"
 	"encoding/xml"
 	"time"
 
@@ -77,11 +78,11 @@ func (g *GB28181) GetPresetQuery(client server.Client, deviceID string) (int64, 
 	return sn, nil
 }
 
-func (g *GB28181) PresetQuery(client server.Client, body []byte) (*server.Response, error) {
+func (g *GB28181) PresetQuery(ctx context.Context, client server.Client, body []byte) (*server.Response, error) {
 	presetQuery := &PresetQuery{}
 	if err := utils.XMLDecode(body, presetQuery); err != nil {
 		return nil, err
 	}
 
-	return g.handler.PresetQuery(client, presetQuery)
+	return g.handler.PresetQuery(ctx, client, presetQuery)
 }

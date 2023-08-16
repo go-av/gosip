@@ -32,18 +32,16 @@ type server struct {
 	needauth  bool
 	handler   Handler
 	address   *message.Address
-	responses *sync.Map
-	dialog    *sync.Map          // 呼叫会话管理
+	responses sync.Map
+	dialog    sync.Map           // 呼叫会话管理
 	receive   chan dialog.Dialog // 接收到的会话
 }
 
 func NewServer(needauth bool, handler Handler) *server {
 	s := &server{
-		needauth:  needauth,
-		handler:   handler,
-		responses: &sync.Map{},
-		dialog:    &sync.Map{},
-		receive:   make(chan dialog.Dialog, 5),
+		needauth: needauth,
+		handler:  handler,
+		receive:  make(chan dialog.Dialog, 5),
 	}
 	return s
 }
@@ -192,7 +190,7 @@ func (s *server) HandleRequest(req message.Request) {
 		if !ok {
 			return
 		}
-		response, err := s.handler.ReceiveMessage(client, message.NewBody(contentTypeHeader.Value(), req.Body()))
+		response, err := s.handler.ReceiveMessage(s.ctx, client, message.NewBody(contentTypeHeader.Value(), req.Body()))
 		if err != nil {
 			logrus.Error(err)
 			return

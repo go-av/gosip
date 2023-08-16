@@ -1,12 +1,14 @@
 package sip
 
 import (
+	"context"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/go-av/gosip/pkg/gb28181"
 	"github.com/go-av/gosip/pkg/server"
 )
 
-func (d *SipHandler) Broadcast(client server.Client, bl *gb28181.BroadcastResponse) {
+func (d *SipHandler) Broadcast(ctx context.Context, client server.Client, bl *gb28181.BroadcastResponse) {
 	spew.Dump(bl)
 }
 

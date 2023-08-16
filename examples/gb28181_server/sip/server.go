@@ -1,6 +1,7 @@
 package sip
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -86,9 +87,9 @@ func (d *SipHandler) ServerSIPID() string {
 	return d.sipID
 }
 
-func (d *SipHandler) ReceiveMessage(client server.Client, body message.Body) (*server.Response, error) {
+func (d *SipHandler) ReceiveMessage(ctx context.Context, client server.Client, body message.Body) (*server.Response, error) {
 	if body.ContentType() == "Application/MANSCDP+xml" {
-		return d.gb28181.Handler(client, body.Data())
+		return d.gb28181.Handler(ctx, client, body.Data())
 	}
 	return server.NewResponse(400, "unknown"), nil
 }

@@ -1,6 +1,8 @@
 package gb28181
 
 import (
+	"context"
+
 	"github.com/go-av/gosip/pkg/server"
 	"github.com/go-av/gosip/pkg/utils"
 )
@@ -26,10 +28,10 @@ type Keepalive struct {
 	InfoDeviceIDs []string `xml:"Info>DeviceID"`
 }
 
-func (g *GB28181) Keepalive(client server.Client, body []byte) (*server.Response, error) {
+func (g *GB28181) Keepalive(ctx context.Context, client server.Client, body []byte) (*server.Response, error) {
 	kl := &Keepalive{}
 	if err := utils.XMLDecode(body, kl); err != nil {
 		return nil, err
 	}
-	return g.handler.Keepalive(client, kl)
+	return g.handler.Keepalive(ctx, client, kl)
 }

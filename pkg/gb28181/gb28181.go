@@ -1,6 +1,7 @@
 package gb28181
 
 import (
+	"context"
 	"encoding/xml"
 	"strings"
 
@@ -27,7 +28,7 @@ type GB28181 struct {
 	handler GB28181Handler
 }
 
-func (g *GB28181) Handler(client server.Client, body []byte) (*server.Response, error) {
+func (g *GB28181) Handler(ctx context.Context, client server.Client, body []byte) (*server.Response, error) {
 	if body == nil {
 		return nil, nil
 	}
@@ -39,19 +40,19 @@ func (g *GB28181) Handler(client server.Client, body []byte) (*server.Response, 
 
 	switch message.CmdType {
 	case CmdType__Catalog:
-		return g.Catalog(client, body)
+		return g.Catalog(ctx, client, body)
 	case CmdType__Keepalive:
-		return g.Keepalive(client, body)
+		return g.Keepalive(ctx, client, body)
 	case CmdType__DeviceInfo:
-		return g.DeviceInfo(client, body)
+		return g.DeviceInfo(ctx, client, body)
 	case CmdType__DeviceStatus:
-		return g.DeviceStatus(client, body)
+		return g.DeviceStatus(ctx, client, body)
 	case CmdType__PresetQuery:
-		return g.PresetQuery(client, body)
+		return g.PresetQuery(ctx, client, body)
 	case CmdType__ConfigDownload:
-		return g.ConfigDownload(client, body)
+		return g.ConfigDownload(ctx, client, body)
 	case CmdType__Broadcast:
-		return g.Broadcast(client, body)
+		return g.Broadcast(ctx, client, body)
 	}
 
 	return server.NewResponse(200, "success."), nil

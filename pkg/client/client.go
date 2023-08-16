@@ -33,11 +33,15 @@ type Client struct {
 	serverAddr *utils.HostAndPort
 
 	protocol string // 传输协议  UDP or TCP
-	dialogs  *sync.Map
-	receive  chan dialog.Dialog // 接收到的会话
+
+	handler   Handler
+	dialogs   sync.Map
+	responses sync.Map
+
+	receive chan dialog.Dialog // 接收到的会话
 }
 
-func NewClient(displayName string, user string, password string, protocol string, address string) (*Client, error) {
+func NewClient(displayName string, user string, password string, protocol string, address string, handler Handler) (*Client, error) {
 	addr, err := utils.ParseHostAndPort(address)
 	if err != nil {
 		return nil, err
@@ -50,8 +54,8 @@ func NewClient(displayName string, user string, password string, protocol string
 		stack:       sip.NewSipStack(user),
 		protocol:    protocol,
 		localAddr:   addr,
-		dialogs:     &sync.Map{},
 		receive:     make(chan dialog.Dialog, 10),
+		handler:     handler,
 	}
 	return client, nil
 }
@@ -193,7 +197,34 @@ func (client *Client) HandleRequest(req message.Request) {
 			dl.HandleRequest(req)
 		}
 
+	case method.MESSAGE, method.NOTIFY:
+		if client.handler == nil {
+			return
+		}
+
+		contentTypeHeader, ok := req.ContentType()
+		if !ok {
+			return
+		}
+
+		response, err := client.handler.ReceiveMessage(client.ctx, req.Method(), message.NewBody(contentTypeHeader.Value(), req.Body()))
+		if err != nil {
+			logrus.Error(err)
+			return
+		}
+
+		if response == nil || response.code == 0 {
+			return
+		}
+
+		resp := message.NewResponse(req, message.StatusCode(response.code), response.reason)
+		if response.body != nil {
+			resp.SetBody(string(response.contentType), response.body)
+		}
+		client.stack.Send(client.protocol, client.serverAddr.String(), resp)
+
 	default:
+
 		// resp := message.NewResponse(msg, 200, "Ok")
 		// err := client.Send(client.serverAddr.String(), resp)
 		// if err != nil {
@@ -276,4 +307,36 @@ func (client *Client) Send(protocol string, address string, msg message.Message)
 
 func (client *Client) Receive() chan dialog.Dialog {
 	return client.receive
+}
+
+type response struct {
+	err  error
+	resp message.Response
+}
+
+func (client *Client) SendMessage(request message.Request) (message.Response, error) {
+	callID := utils.RandString(30)
+	request.SetHeader(message.NewCallIDHeader(callID))
+
+	respChan := make(chan response, 1)
+	client.responses.Store(callID, respChan)
+	defer client.responses.Delete(callID)
+
+	err := client.stack.Send(client.protocol, client.serverAddr.String(), request)
+	if err != nil {
+		return nil, err
+	}
+
+	t := time.NewTimer(10 * time.Second)
+	select {
+	case <-t.C:
+		return nil, errors.New("请求超时")
+	case resp := <-respChan:
+		t.Stop()
+		if resp.err != nil {
+			return nil, err
+		}
+
+		return resp.resp, nil
+	}
 }

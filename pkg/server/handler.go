@@ -30,7 +30,7 @@ type Response struct {
 type Handler interface {
 	GetClient(deviceID string) (Client, error)
 	Realm() string
-	ReceiveMessage(Client, message.Body) (*Response, error)
+	ReceiveMessage(context.Context, Client, message.Body) (*Response, error)
 }
 
 type Server interface {

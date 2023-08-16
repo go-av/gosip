@@ -1,6 +1,7 @@
 package gb28181
 
 import (
+	"context"
 	"encoding/xml"
 	"time"
 
@@ -53,10 +54,10 @@ func (g *GB28181) GetDeviceInfo(client server.Client, deviceID string) (int64, e
 	return sn, nil
 }
 
-func (g *GB28181) DeviceInfo(client server.Client, body []byte) (*server.Response, error) {
+func (g *GB28181) DeviceInfo(ctx context.Context, client server.Client, body []byte) (*server.Response, error) {
 	deviceInfo := &DeviceInfo{}
 	if err := utils.XMLDecode(body, deviceInfo); err != nil {
 		return nil, err
 	}
-	return g.handler.DeviceInfo(client, deviceInfo)
+	return g.handler.DeviceInfo(ctx, client, deviceInfo)
 }

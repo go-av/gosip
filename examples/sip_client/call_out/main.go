@@ -29,7 +29,7 @@ func main() {
 	to := flag.String("to", "snail_in", "call to user")
 	flag.Parse()
 
-	client, err := client.NewClient("蜗牛", "34030000001110000002", "12345678", *protocol, *localAddr)
+	client, err := client.NewClient("蜗牛", "34030000001110000002", "12345678", *protocol, *localAddr, nil)
 	if err != nil {
 		panic(err)
 	}
