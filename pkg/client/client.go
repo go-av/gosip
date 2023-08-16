@@ -61,6 +61,11 @@ func NewClient(displayName string, user string, password string, address string,
 func (client *Client) IsAuth() bool {
 	return client.auth
 }
+
+func (client *Client) Logout() error {
+	return client.registrar(0, nil)
+}
+
 func (client *Client) Registrar(ctx context.Context, address string, protocol string) error {
 	client.protocol = protocol
 	logrus.Infof("client %s registrar %s(%s)", client.user, address, protocol)
