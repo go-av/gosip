@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/go-av/gosip/examples/server/sip"
+	"github.com/go-av/gosip/examples/gb28181_server/sip"
 	"github.com/go-av/gosip/pkg/server"
 	"github.com/go-av/gosip/pkg/utils"
 )
