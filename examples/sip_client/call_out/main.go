@@ -29,7 +29,7 @@ func main() {
 	to := flag.String("to", "snail_in", "call to user")
 	flag.Parse()
 
-	client, err := client.NewClient("蜗牛", "34030000001110000002", "12345678", *protocol, *localAddr, nil)
+	client, err := client.NewClient("蜗牛", "34030000001110000002", "12345678", *localAddr, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -55,7 +55,7 @@ a=sendrecv
 	}
 
 	ctx := context.Background()
-	err = client.Start(ctx, *serverAddr)
+	err = client.Registrar(ctx, *serverAddr, *protocol)
 	if err != nil {
 		panic(err)
 	}

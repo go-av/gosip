@@ -41,7 +41,7 @@ type Client struct {
 	receive chan dialog.Dialog // 接收到的会话
 }
 
-func NewClient(displayName string, user string, password string, protocol string, address string, handler Handler) (*Client, error) {
+func NewClient(displayName string, user string, password string, address string, handler Handler) (*Client, error) {
 	addr, err := utils.ParseHostAndPort(address)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,6 @@ func NewClient(displayName string, user string, password string, protocol string
 		user:        user,
 		password:    password,
 		stack:       sip.NewSipStack(user),
-		protocol:    protocol,
 		localAddr:   addr,
 		receive:     make(chan dialog.Dialog, 10),
 		handler:     handler,
@@ -60,8 +59,9 @@ func NewClient(displayName string, user string, password string, protocol string
 	return client, nil
 }
 
-func (client *Client) Start(ctx context.Context, address string) error {
-	logrus.Infof("client %s registrar %s", client.user, address)
+func (client *Client) Registrar(ctx context.Context, address string, protocol string) error {
+	client.protocol = protocol
+	logrus.Infof("client %s registrar %s(%s)", client.user, address, protocol)
 
 	addr, err := utils.ParseHostAndPort(address)
 	if err != nil {

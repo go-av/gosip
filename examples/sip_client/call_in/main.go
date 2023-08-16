@@ -21,13 +21,13 @@ func main() {
 	serverAddr := flag.String("server-addr", "172.20.50.12:5060", "SIP 服务端地址")
 
 	flag.Parse()
-	client, err := client.NewClient("蜗牛", "snail_in", "abc", *protocol, *localAddr, nil)
+	client, err := client.NewClient("蜗牛", "snail_in", "abc", *localAddr, nil)
 	if err != nil {
 		panic(err)
 	}
 
 	ctx, _ := context.WithCancel(context.Background())
-	err = client.Start(ctx, *serverAddr)
+	err = client.Registrar(ctx, *serverAddr, *protocol)
 	if err != nil {
 		panic(err)
 	}
