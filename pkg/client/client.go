@@ -125,6 +125,8 @@ func (client *Client) registrar(expire int, resp message.Response) error {
 		if expire-10 > 0 {
 			client.registryTicker = time.NewTicker(time.Duration(expire-10) * time.Second)
 		}
+	} else {
+		expire = 3600
 	}
 
 	localAddr := message.NewAddress(client.user, client.localAddr.Host, client.localAddr.Port)
@@ -138,7 +140,7 @@ func (client *Client) registrar(expire int, resp message.Response) error {
 		message.NewMaxForwardsHeader(70),
 		message.NewContactHeader(client.displayName, localAddr, client.protocol, contactParam),
 		message.NewSupportedHeader([]string{"replaces", "outbound", "gruu"}),
-		message.NewExpiresHeader(3600),
+		message.NewExpiresHeader(expire),
 	)
 
 	if resp != nil {
