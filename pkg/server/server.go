@@ -229,7 +229,7 @@ func (s *server) HandleResponse(resp message.Response) {
 			dl.HandleResponse(resp)
 		}
 
-	case method.MESSAGE:
+	default:
 		callID, ok := resp.CallID()
 		if ok {
 			if callback, ok := s.responses.Load(callID.Value()); ok {
@@ -240,10 +240,10 @@ func (s *server) HandleResponse(resp message.Response) {
 				r.resp = resp
 				callback.(chan response) <- r
 			}
+		} else {
+			logrus.Debugf("Server %s %s 未处理", cseq.Method, resp.StartLine())
 		}
 
-	default:
-		logrus.Debugf("Server %s %s 未处理", cseq.Method, resp.StartLine())
 	}
 }
 

@@ -85,7 +85,7 @@ func main() {
 	flag.Parse()
 	iceServer = *ice
 	var err error
-	sipClient, err = client.NewClient(*userName, *displayName, *password, *localAddr, nil)
+	sipClient, err = client.NewClient(context.Background(), *userName, *displayName, *password, *localAddr, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -141,8 +141,7 @@ a=sendrecv
 
 	streamMgr = NewStreamMgr(localIP, *mediaPort)
 
-	ctx, _ := context.WithCancel(context.Background())
-	err = sipClient.Registrar(ctx, *serverAddr, *protocol)
+	err = sipClient.Registrar(*serverAddr, *protocol)
 	if err != nil {
 		panic(err)
 	}

@@ -38,16 +38,20 @@ type Client struct {
 	dialogs   sync.Map
 	responses sync.Map
 
-	receive chan dialog.Dialog // 接收到的会话
+	receive        chan dialog.Dialog // 接收到的会话
+	once           sync.Once
+	registryTicker *time.Ticker
 }
 
-func NewClient(displayName string, user string, password string, address string, handler Handler) (*Client, error) {
+func NewClient(ctx context.Context, displayName string, user string, password string, address string, handler Handler) (*Client, error) {
 	addr, err := utils.ParseHostAndPort(address)
 	if err != nil {
 		return nil, err
 	}
-
+	ctx, cancelFunc := context.WithCancel(ctx)
 	client := &Client{
+		ctx:         ctx,
+		cancelFunc:  cancelFunc,
 		displayName: displayName,
 		user:        user,
 		password:    password,
@@ -66,7 +70,7 @@ func (client *Client) Logout() error {
 	return client.registrar(0, nil)
 }
 
-func (client *Client) Registrar(ctx context.Context, address string, protocol string) error {
+func (client *Client) Registrar(address string, protocol string) error {
 	client.protocol = protocol
 	logrus.Infof("client %s registrar %s(%s)", client.user, address, protocol)
 
@@ -80,14 +84,22 @@ func (client *Client) Registrar(ctx context.Context, address string, protocol st
 		return err
 	}
 	client.stack.SetListener(client)
-	ctx, cancelFunc := context.WithCancel(ctx)
-	client.ctx = ctx
-	client.cancelFunc = cancelFunc
-	go client.stack.Start(ctx)
+
+	client.once.Do(func() {
+		go client.stack.Start(client.ctx)
+		client.registryTicker = time.NewTicker(10 * time.Minute)
+		go func() {
+			for {
+				<-client.registryTicker.C
+				client.registrar(-1, nil)
+			}
+		}()
+	})
+
+	fmt.Println("x??")
 	time.Sleep(1 * time.Second)
 
 	if err := client.registrar(-1, nil); err != nil {
-		cancelFunc()
 		return err
 	}
 	t := time.NewTicker(1 * time.Minute)
@@ -97,14 +109,12 @@ func (client *Client) Registrar(ctx context.Context, address string, protocol st
 	}
 	select {
 	case <-t.C:
-		cancelFunc()
 		return fmt.Errorf("认证超时")
 	case err := <-autherr:
 		return err
 	}
 }
 
-// 暂时未做认证
 func (client *Client) registrar(expire int, resp message.Response) error {
 	msg := message.NewRequestMessage(client.protocol, method.REGISTER, message.NewAddress(client.user, client.serverAddr.Host, client.serverAddr.Port))
 
@@ -112,6 +122,9 @@ func (client *Client) registrar(expire int, resp message.Response) error {
 	if expire >= 0 {
 		contactParam.Set("expires", fmt.Sprintf("%d", expire))
 		msg.AppendHeader(message.NewExpiresHeader(expire))
+		if expire-10 > 0 {
+			client.registryTicker = time.NewTicker(time.Duration(expire-10) * time.Second)
+		}
 	}
 
 	localAddr := message.NewAddress(client.user, client.localAddr.Host, client.localAddr.Port)
@@ -125,6 +138,7 @@ func (client *Client) registrar(expire int, resp message.Response) error {
 		message.NewMaxForwardsHeader(70),
 		message.NewContactHeader(client.displayName, localAddr, client.protocol, contactParam),
 		message.NewSupportedHeader([]string{"replaces", "outbound", "gruu"}),
+		message.NewExpiresHeader(3600),
 	)
 
 	if resp != nil {
@@ -199,7 +213,7 @@ func (client *Client) HandleRequest(req message.Request) {
 			dl.HandleRequest(req)
 		}
 
-	case method.MESSAGE, method.NOTIFY:
+	default:
 		if client.handler == nil {
 			return
 		}
@@ -224,14 +238,6 @@ func (client *Client) HandleRequest(req message.Request) {
 			resp.SetBody(string(response.contentType), response.body)
 		}
 		client.stack.Send(client.protocol, client.serverAddr.String(), resp)
-
-	default:
-
-		// resp := message.NewResponse(msg, 200, "Ok")
-		// err := client.Send(client.serverAddr.String(), resp)
-		// if err != nil {
-		// 	logrus.Error(err)
-		// }
 	}
 }
 
@@ -249,20 +255,26 @@ func (client *Client) HandleResponse(resp message.Response) {
 			if client.authCallback != nil {
 				client.authCallback(nil)
 			}
-			var d = time.Duration(1 * time.Second)
 			if con, ok := resp.Contact(); ok {
 				if param, ok := con.Params.Get("expires"); ok {
 					expire, _ := strconv.ParseInt(param, 10, 64)
 					if (expire - 10) > 0 {
-						d = time.Duration((expire - 10)) * time.Second
+						fmt.Println("reset", time.Duration((expire-10))*time.Second)
+						client.registryTicker.Reset(time.Duration((expire - 10)) * time.Second)
 					}
 				}
 			}
-			time.Sleep(d)
-			client.registrar(-1, nil)
+			if expires, ok := resp.Expires(); ok {
+				expire := int(*expires)
+				if (expire - 10) > 0 {
+					fmt.Println("reset", time.Duration((expire-10))*time.Second)
+					client.registryTicker.Reset(time.Duration((expire - 10)) * time.Second)
+				}
+			}
+
 		case 401:
 			client.auth = false
-			client.registrar(4800, resp)
+			client.registrar(3600, resp)
 		case 403, 404:
 			client.auth = false
 			if client.authCallback != nil {
@@ -281,7 +293,19 @@ func (client *Client) HandleResponse(resp message.Response) {
 			dl.HandleResponse(resp)
 		}
 	default:
-		logrus.Debugf("Client 消息 %s 未处理", resp.String())
+		callID, ok := resp.CallID()
+		if ok {
+			if callback, ok := client.responses.Load(callID.Value()); ok {
+				r := response{}
+				if !resp.IsSuccess() {
+					r.err = errors.New(resp.Reason())
+				}
+				r.resp = resp
+				callback.(chan response) <- r
+			}
+		} else {
+			logrus.Debugf("Client 消息 %s 未处理", resp.String())
+		}
 	}
 }
 

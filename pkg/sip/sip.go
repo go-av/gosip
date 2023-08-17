@@ -54,11 +54,6 @@ func (stack *SipStack) SetFuncHandler(method method.Method, handler func(message
 }
 
 func (stack *SipStack) Start(ctx context.Context) {
-	defer func() {
-		stack.listeningPoints.Range(func(key, value any) bool {
-			return true
-		})
-	}()
 	stack.listeningPoints.Range(func(key, value any) bool {
 		if lp, ok := value.(transport.ListeningPoint); ok {
 			go lp.Start()
