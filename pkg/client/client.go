@@ -85,11 +85,6 @@ func (client *Client) Registrar(ctx context.Context, address string, protocol st
 	client.cancelFunc = cancelFunc
 	go client.stack.Start(ctx)
 	time.Sleep(1 * time.Second)
-	go func() {
-		<-client.ctx.Done()
-		// 注销
-		client.registrar(0, nil)
-	}()
 
 	if err := client.registrar(-1, nil); err != nil {
 		cancelFunc()
