@@ -121,7 +121,6 @@ func (client *Client) registrar(expire int, resp message.Response) error {
 	contactParam := message.NewParams()
 	if expire >= 0 {
 		contactParam.Set("expires", fmt.Sprintf("%d", expire))
-		msg.AppendHeader(message.NewExpiresHeader(expire))
 		if expire-10 > 0 {
 			client.registryTicker = time.NewTicker(time.Duration(expire-10) * time.Second)
 		}
