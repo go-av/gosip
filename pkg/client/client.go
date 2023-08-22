@@ -96,7 +96,6 @@ func (client *Client) Registrar(address string, protocol string) error {
 		}()
 	})
 
-	fmt.Println("x??")
 	time.Sleep(1 * time.Second)
 
 	if err := client.registrar(-1, nil); err != nil {

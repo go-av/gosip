@@ -87,17 +87,11 @@ func (ut *UDPTransport) Send(address string, msg message.Message) error {
 	}
 
 	fmt.Printf("\n\n\n[GOSIP][UDP] %s %s --->> %s \n%s\n", time.Now().Format(time.RFC3339), ut.address.String(), addr.String(), msg.String())
-
-	conn, err := reuse.Dial("udp", ut.address.String(), addr.String())
+	_, err = ut.Connection.WriteTo([]byte(msg.String()), addr)
 	if err != nil {
 		logrus.Errorf("Some error %v", err)
 		return err
 	}
-	defer conn.Close()
-	_, err = conn.Write([]byte(msg.String()))
-	if err != nil {
-		logrus.Error(err)
-		return err
-	}
+
 	return nil
 }

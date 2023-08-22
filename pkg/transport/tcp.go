@@ -27,7 +27,6 @@ func (tt *TCPTransport) readConn(addr string, conn net.Conn) error {
 	for {
 		n, err := conn.Read(tt.buffer)
 		if err != nil {
-			fmt.Println("tcperr", err)
 			if err == io.EOF {
 				return err
 			}
