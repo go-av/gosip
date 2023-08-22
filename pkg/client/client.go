@@ -293,6 +293,9 @@ func (client *Client) HandleResponse(resp message.Response) {
 			dl.HandleResponse(resp)
 		}
 	default:
+		if resp.StatusCode() == 401 {
+			client.Login(3600, nil)
+		}
 		callID, ok := resp.CallID()
 		if ok {
 			if callback, ok := client.responses.Load(callID.Value()); ok {
