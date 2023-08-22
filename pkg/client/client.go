@@ -67,7 +67,7 @@ func (client *Client) IsAuth() bool {
 }
 
 func (client *Client) Logout() error {
-	return client.registrar(0, nil)
+	return client.Login(0, nil)
 }
 
 func (client *Client) Registrar(address string, protocol string) error {
@@ -91,14 +91,14 @@ func (client *Client) Registrar(address string, protocol string) error {
 		go func() {
 			for {
 				<-client.registryTicker.C
-				client.registrar(-1, nil)
+				client.Login(-1, nil)
 			}
 		}()
 	})
 
 	time.Sleep(1 * time.Second)
 
-	if err := client.registrar(-1, nil); err != nil {
+	if err := client.Login(-1, nil); err != nil {
 		return err
 	}
 	t := time.NewTicker(1 * time.Minute)
@@ -114,7 +114,7 @@ func (client *Client) Registrar(address string, protocol string) error {
 	}
 }
 
-func (client *Client) registrar(expire int, resp message.Response) error {
+func (client *Client) Login(expire int, resp message.Response) error {
 	msg := message.NewRequestMessage(client.protocol, method.REGISTER, message.NewAddress(client.user, client.serverAddr.Host, client.serverAddr.Port))
 
 	contactParam := message.NewParams()
@@ -274,7 +274,7 @@ func (client *Client) HandleResponse(resp message.Response) {
 
 		case 401:
 			client.auth = false
-			client.registrar(3600, resp)
+			client.Login(3600, resp)
 		case 403, 404:
 			client.auth = false
 			if client.authCallback != nil {
