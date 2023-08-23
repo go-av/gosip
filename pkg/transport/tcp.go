@@ -22,7 +22,10 @@ type TCPTransport struct {
 }
 
 func (tt *TCPTransport) readConn(addr string, conn net.Conn) error {
-	defer tt.connTable.Delete(addr)
+	defer func() {
+		conn.Close()
+		tt.connTable.Delete(addr)
+	}()
 
 	for {
 		n, err := conn.Read(tt.buffer)
