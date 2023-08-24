@@ -252,19 +252,28 @@ func (client *Client) HandleResponse(resp message.Response) {
 				client.authCallback(200, "success.")
 			}
 
-			if con, ok := resp.Contact(); ok {
+			ex := false
+
+			if expires, ok := resp.Expires(); ok {
+				expire := int(*expires)
+				if (expire - 10) > 0 {
+					ex = true
+					client.loginTicker.Reset(time.Duration((expire - 10)) * time.Second)
+				}
+			}
+
+			if con, ok := resp.Contact(); !ex && ok {
 				if param, ok := con.Params.Get("expires"); ok {
 					expire, _ := strconv.ParseInt(param, 10, 64)
 					if (expire - 10) > 0 {
+						ex = true
 						client.loginTicker.Reset(time.Duration((expire - 10)) * time.Second)
 					}
 				}
 			}
-			if expires, ok := resp.Expires(); ok {
-				expire := int(*expires)
-				if (expire - 10) > 0 {
-					client.loginTicker.Reset(time.Duration((expire - 10)) * time.Second)
-				}
+
+			if !ex {
+				client.loginTicker.Reset(time.Duration(client.loginExpire-10) * time.Second)
 			}
 
 		case 401:
