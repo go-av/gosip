@@ -43,7 +43,7 @@ type Client struct {
 	loginTicker *time.Ticker
 
 	loginExpire int // 注册有效期单位秒
-	requestUser string
+	requestAddr *message.Address
 }
 
 func NewClient(ctx context.Context, displayName string, user string, password string, address string, handler Handler) (*Client, error) {
@@ -63,7 +63,6 @@ func NewClient(ctx context.Context, displayName string, user string, password st
 		receive:     make(chan dialog.Dialog, 10),
 		handler:     handler,
 		loginExpire: 3600,
-		requestUser: user,
 	}
 	return client, nil
 }
@@ -90,6 +89,10 @@ func (client *Client) Registrar(address string, protocol string) error {
 		return err
 	}
 
+	if client.requestAddr == nil {
+		client.requestAddr = message.NewAddress(client.user, client.serverAddr.Host, client.serverAddr.Port)
+	}
+
 	client.stack.SetListener(client)
 	go client.stack.Start(client.ctx)
 	time.Sleep(1 * time.Second)
@@ -113,12 +116,12 @@ func (client *Client) WithLoginExpire(expire int) {
 	client.loginExpire = expire
 }
 
-func (client *Client) WithRequestUser(requestUser string) {
-	client.requestUser = requestUser
+func (client *Client) WithRequestAddress(requestAddress *message.Address) {
+	client.requestAddr = requestAddress
 }
 
 func (client *Client) Login(expire int, resp message.Response) error {
-	msg := message.NewRequestMessage(client.protocol, method.REGISTER, message.NewAddress(client.requestUser, client.serverAddr.Host, client.serverAddr.Port))
+	msg := message.NewRequestMessage(client.protocol, method.REGISTER, client.requestAddr)
 	if expire < 0 {
 		expire = client.loginExpire
 	}
