@@ -41,6 +41,8 @@ type Client struct {
 	receive     chan dialog.Dialog // 接收到的会话
 	once        sync.Once
 	loginTicker *time.Ticker
+
+	loginExpire int // 注册有效期单位秒
 }
 
 func NewClient(ctx context.Context, displayName string, user string, password string, address string, handler Handler) (*Client, error) {
@@ -59,6 +61,7 @@ func NewClient(ctx context.Context, displayName string, user string, password st
 		localAddr:   addr,
 		receive:     make(chan dialog.Dialog, 10),
 		handler:     handler,
+		loginExpire: 3600,
 	}
 	return client, nil
 }
@@ -78,6 +81,7 @@ func (client *Client) Registrar(address string, protocol string) error {
 	if err != nil {
 		return err
 	}
+
 	client.serverAddr = addr
 	_, err = client.stack.CreateListenPoint(client.protocol, client.localAddr.String())
 	if err != nil {
@@ -99,21 +103,24 @@ func (client *Client) Registrar(address string, protocol string) error {
 	return client.Login(-1, nil)
 }
 
-func (client *Client) WithAuthCllback(callback func(int, string)) {
+func (client *Client) WithAuthCllback(callback func(statusCode int, msg string)) {
 	client.authCallback = callback
+}
+
+func (client *Client) WithLoginExpire(expire int) {
+	client.loginExpire = expire
 }
 
 func (client *Client) Login(expire int, resp message.Response) error {
 	msg := message.NewRequestMessage(client.protocol, method.REGISTER, message.NewAddress(client.user, client.serverAddr.Host, client.serverAddr.Port))
-
+	if expire < 0 {
+		expire = client.loginExpire
+	}
 	contactParam := message.NewParams()
-	if expire >= 0 {
-		contactParam.Set("expires", fmt.Sprintf("%d", expire))
-		if expire-10 > 0 {
-			client.loginTicker = time.NewTicker(time.Duration(expire-10) * time.Second)
-		}
-	} else {
-		expire = 3600
+	contactParam.Set("expires", fmt.Sprintf("%d", expire))
+
+	if expire != 0 && client.loginTicker != nil {
+		client.loginTicker.Reset(1 * time.Minute)
 	}
 
 	localAddr := message.NewAddress(client.user, client.localAddr.Host, client.localAddr.Port)
@@ -262,13 +269,9 @@ func (client *Client) HandleResponse(resp message.Response) {
 
 		case 401:
 			client.auth = false
-			client.Login(3600, resp)
+			client.Login(-1, resp)
 		case 403, 404, 500:
 			client.auth = false
-			if client.loginTicker != nil {
-				client.loginTicker.Reset(1 * time.Minute)
-			}
-
 			if client.authCallback != nil {
 				client.authCallback(int(resp.StatusCode()), resp.Reason())
 			}
@@ -287,7 +290,7 @@ func (client *Client) HandleResponse(resp message.Response) {
 	default:
 		if resp.StatusCode() == 401 {
 			client.auth = false
-			client.Login(3600, nil)
+			client.Login(-1, nil)
 		}
 		callID, ok := resp.CallID()
 		if ok {
