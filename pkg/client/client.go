@@ -44,7 +44,7 @@ type Client struct {
 
 	loginExpire          int // 注册有效期单位秒
 	requestUser          string
-	updateRegisterHeader func(req message.Message, resp message.Message)
+	updateRegisterHeader func(expire int, req message.Message, resp message.Message)
 }
 
 func NewClient(ctx context.Context, displayName string, user string, password string, address string, handler Handler) (*Client, error) {
@@ -119,7 +119,7 @@ func (client *Client) WithRequestUser(requestUser string) {
 	client.requestUser = requestUser
 }
 
-func (client *Client) WithUpdateRegisterHeader(updateRegisterHeader func(req message.Message, resp message.Message)) {
+func (client *Client) WithUpdateRegisterHeader(updateRegisterHeader func(expire int, req message.Message, resp message.Message)) {
 	client.updateRegisterHeader = updateRegisterHeader
 }
 
@@ -161,7 +161,7 @@ func (client *Client) Login(expire int, resp message.Response) error {
 	}
 
 	if client.updateRegisterHeader != nil {
-		client.updateRegisterHeader(msg, resp)
+		client.updateRegisterHeader(expire, msg, resp)
 	}
 
 	err := client.Send(client.protocol, client.serverAddr.String(), msg)
