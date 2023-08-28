@@ -294,7 +294,7 @@ func (client *Client) HandleResponse(resp message.Response) {
 		case 401:
 			client.auth = false
 			client.Login(-1, resp)
-		case 403, 404, 500:
+		default:
 			client.auth = false
 			if client.authCallback != nil {
 				client.authCallback(resp)

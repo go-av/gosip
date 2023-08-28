@@ -6,11 +6,7 @@ import (
 	"sync"
 )
 
-type Message interface {
-	StartLine() string
-	String() string
-	Body() []byte
-	SetBody(contentType string, body []byte)
+type Headers interface {
 	SetHeader(header Header)
 	AppendHeader(headers ...Header)
 	DelHeader(name string)
@@ -29,6 +25,14 @@ type Message interface {
 	WWWAuthenticate() (*WWWAuthenticateHeader, bool)
 	Authorization() (*AuthorizationHeader, bool)
 	Expires() (*ExpiresHeader, bool)
+}
+
+type Message interface {
+	StartLine() string
+	String() string
+	Body() []byte
+	SetBody(contentType string, body []byte)
+	Headers
 	SetSrc([]byte)
 	Src() []byte
 }
