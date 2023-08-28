@@ -25,7 +25,7 @@ type Client struct {
 	password    string
 
 	auth         bool
-	authCallback func(statuscode int, msg string)
+	authCallback func(msg message.Response)
 
 	stack *sip.SipStack
 
@@ -107,7 +107,7 @@ func (client *Client) Registrar(address string, protocol string) error {
 	return client.Login(-1, nil)
 }
 
-func (client *Client) WithAuthCllback(callback func(statusCode int, msg string)) {
+func (client *Client) WithAuthCllback(callback func(resp message.Response)) {
 	client.authCallback = callback
 }
 
@@ -264,7 +264,7 @@ func (client *Client) HandleResponse(resp message.Response) {
 		case 200:
 			client.auth = true
 			if client.authCallback != nil {
-				client.authCallback(200, "success.")
+				client.authCallback(resp)
 			}
 
 			ex := false
@@ -297,7 +297,7 @@ func (client *Client) HandleResponse(resp message.Response) {
 		case 403, 404, 500:
 			client.auth = false
 			if client.authCallback != nil {
-				client.authCallback(int(resp.StatusCode()), resp.Reason())
+				client.authCallback(resp)
 			}
 		}
 
