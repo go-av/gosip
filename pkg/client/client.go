@@ -42,8 +42,9 @@ type Client struct {
 	once        sync.Once
 	loginTicker *time.Ticker
 
-	loginExpire int // 注册有效期单位秒
-	requestUser string
+	loginExpire          int // 注册有效期单位秒
+	requestUser          string
+	updateRegisterHeader func(req message.Message, resp message.Message)
 }
 
 func NewClient(ctx context.Context, displayName string, user string, password string, address string, handler Handler) (*Client, error) {
@@ -65,6 +66,7 @@ func NewClient(ctx context.Context, displayName string, user string, password st
 		loginExpire: 3600,
 		requestUser: user,
 	}
+
 	return client, nil
 }
 func (client *Client) IsAuth() bool {
@@ -117,6 +119,10 @@ func (client *Client) WithRequestUser(requestUser string) {
 	client.requestUser = requestUser
 }
 
+func (client *Client) WithUpdateRegisterHeader(updateRegisterHeader func(req message.Message, resp message.Message)) {
+	client.updateRegisterHeader = updateRegisterHeader
+}
+
 func (client *Client) Login(expire int, resp message.Response) error {
 	msg := message.NewRequestMessage(client.protocol, method.REGISTER, message.NewAddress(client.requestUser, client.serverAddr.Host, client.serverAddr.Port))
 	if expire < 0 {
@@ -152,6 +158,10 @@ func (client *Client) Login(expire int, resp message.Response) error {
 			cseq.SeqNo += 1
 			msg.SetHeader(cseq)
 		}
+	}
+
+	if client.updateRegisterHeader != nil && resp != nil {
+		client.updateRegisterHeader(msg, resp)
 	}
 
 	err := client.Send(client.protocol, client.serverAddr.String(), msg)
