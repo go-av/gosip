@@ -160,7 +160,7 @@ func (client *Client) Login(expire int, resp message.Response) error {
 		}
 	}
 
-	if client.updateRegisterHeader != nil && resp != nil {
+	if client.updateRegisterHeader != nil {
 		client.updateRegisterHeader(msg, resp)
 	}
 
