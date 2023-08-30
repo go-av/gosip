@@ -222,7 +222,17 @@ func (client *Client) HandleRequest(req message.Request) {
 		if v, ok := client.dialogs.Load(callID.Value()); ok {
 			dl := v.(dialog.Dialog)
 			dl.HandleRequest(req)
+			return
 		}
+
+		if req.Method() == method.BYE || req.Method() == method.CANCEL {
+			resp := message.NewResponse(req, 200, "Ok")
+			_ = client.Send(client.protocol, client.serverAddr.String(), resp)
+			return
+		}
+
+		resp := message.NewResponse(req, 404, "Dialog not found")
+		_ = client.Send(client.protocol, client.serverAddr.String(), resp)
 
 	default:
 		if client.handler == nil {
