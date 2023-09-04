@@ -182,7 +182,7 @@ func Receive(sender Sender, from From, to To, callID string, msg message.Request
 		return nil, err
 	}
 
-	dl.timer.Reset(30 * time.Second)
+	dl.ResetTimer(30 * time.Second)
 	return dl, nil
 }
 
@@ -322,7 +322,7 @@ func (dl *dialog) updateState(state DialogState, reason string) {
 	if state == Accepted {
 		dl.timer.Stop()
 	} else {
-		dl.timer.Reset(10 * time.Second)
+		dl.ResetTimer(10 * time.Second)
 	}
 	if state != dl.currentstate.state {
 		sr := &stateWithReason{
@@ -382,7 +382,7 @@ func (dl *dialog) Answer(sdp string) error {
 	if dl.origin != CallIN {
 		return errors.New("非法操作")
 	}
-	dl.timer.Reset(10 * time.Second)
+	dl.ResetTimer(10 * time.Second)
 	resp := message.NewResponse(dl.invite, 200, "success.")
 	resp.SetBody(string(message.ContentType__SDP), []byte(sdp))
 	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
@@ -406,7 +406,7 @@ func (dl *dialog) Reject() error {
 	if dl.origin != CallIN {
 		return errors.New("非法操作")
 	}
-	dl.timer.Reset(10 * time.Second)
+	dl.ResetTimer(10 * time.Second)
 	resp := message.NewResponse(dl.invite, 603, "Decline")
 	err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
 	if err != nil {
@@ -417,7 +417,7 @@ func (dl *dialog) Reject() error {
 }
 
 func (dl *dialog) Bye() {
-	dl.timer.Reset(10 * time.Second)
+	dl.ResetTimer(10 * time.Second)
 	if dl.origin == CallOUT {
 		contact, _ := dl.invite.Contact()
 		toAddress := message.NewAddress(dl.to.User(), contact.Address.Host, contact.Address.Port)
@@ -458,4 +458,12 @@ func (dl *dialog) Bye() {
 			logrus.Error(err)
 		}
 	}
+}
+
+func (dl *dialog) ResetTimer(dur time.Duration) {
+	dl.timer.Reset(dur)
+}
+
+func (dl *dialog) TimerStop() {
+	dl.timer.Stop()
 }
