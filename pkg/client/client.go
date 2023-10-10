@@ -144,7 +144,7 @@ func (client *Client) Login(expire int, resp message.Response) error {
 		message.NewToHeader(client.displayName, localAddr, nil),
 		message.NewCallIDHeader(utils.RandString(20)),
 		message.NewMaxForwardsHeader(70),
-		message.NewContactHeader(client.displayName, localAddr, client.protocol, contactParam),
+		message.NewContactHeader(client.displayName, localAddr, "", contactParam),
 		message.NewExpiresHeader(expire),
 	)
 

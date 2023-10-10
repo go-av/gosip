@@ -28,9 +28,9 @@ type Dialog interface {
 
 	State() chan State
 
-	Answer(sdp string) error           // 接收
-	Reject(code int, msg string) error // 拒收
-	Bye()                              // 挂断
+	Answer(sdp string) error                                   // 接收
+	Reject(statusCode int, status string, reason string) error // 拒收
+	Bye()                                                      // 挂断
 
 	From() From
 	To() To
@@ -405,18 +405,21 @@ func (dl *dialog) Answer(sdp string) error {
 }
 
 // 拒绝接收
-func (dl *dialog) Reject(code int, msg string) error {
+func (dl *dialog) Reject(statusCode int, status string, reason string) error {
 	if dl.origin != CallIN {
 		return errors.New("非法操作")
 	}
-	if code == 0 {
-		code = 603
+	if statusCode == 0 {
+		statusCode = 603
 	}
-	if msg == "" {
-		msg = "Decline"
+	if status == "" {
+		status = "Decline"
 	}
 	dl.TimerReset(10 * time.Second)
-	resp := message.NewResponse(dl.invite, message.StatusCode(code), msg)
+	resp := message.NewResponse(dl.invite, message.StatusCode(statusCode), status)
+	if reason != "" {
+		resp.AppendHeader(message.NewReasonHeader(reason))
+	}
 	err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
 	if err != nil {
 		logrus.Error(err)
