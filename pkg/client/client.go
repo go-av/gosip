@@ -396,6 +396,10 @@ func (client *Client) SendMessage(request message.Request) (message.Response, er
 			return nil, err
 		}
 
+		if resp.resp == nil {
+			return nil, errors.New("resp is nil")
+		}
+
 		return resp.resp, nil
 	}
 }

@@ -151,7 +151,7 @@ func Invite(ctx context.Context, sender Sender, from From, to To, sdp []byte, up
 		message.NewViaHeader(dl.from.Protocol(), toAddress.Host, toAddress.Port, message.NewParams().Set("branch", dl.branchID).Set("rport", "")),
 		message.NewFromHeader("", toAddress.Clone().SetUser(dl.from.User()), message.NewParams().Set("tag", utils.RandString(20))),
 		message.NewToHeader("", toAddress.Clone().SetUser(dl.to.User()), nil),
-		message.NewContactHeader("", fromAddress.Clone().SetUser(dl.from.User()), dl.from.Protocol(), message.NewParams().Set("expires", "4800")),
+		message.NewContactHeader("", fromAddress.Clone().SetUser(dl.from.User()), "", message.NewParams().Set("expires", "4800")),
 		message.NewAllowHeader(),
 		message.NewCSeqHeader(10, method.INVITE),
 		message.NewMaxForwardsHeader(70),
@@ -179,7 +179,7 @@ func Receive(sender Sender, from From, to To, callID string, msg message.Request
 	// todo bandid
 	resp := message.NewResponse(dl.invite, 180, "ok")
 	resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().Host)))
-	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
+	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), "", nil))
 	err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
 	if err != nil {
 		return nil, err
@@ -288,7 +288,7 @@ func (dl *dialog) HandleRequest(req message.Request) {
 			message.NewViaHeader(dl.from.Protocol(), addr.Host, addr.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		)
 
-		resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
+		resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), "", nil))
 		err := dl.sender.Send(dl.from.Protocol(), addr.String(), resp)
 		if err != nil {
 			logrus.Error(err)
@@ -366,7 +366,7 @@ func (dl *dialog) Run(del func(callID string)) {
 			}
 			if dl.origin == CallIN && dl.currentstate.state < Accepted {
 				resp := message.NewResponse(dl.invite, 486, "Busy Here")
-				resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
+				resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), "", nil))
 				err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
 				if err != nil {
 					logrus.Error(err)
@@ -388,7 +388,7 @@ func (dl *dialog) Answer(sdp string) error {
 	dl.TimerReset(10 * time.Second)
 	resp := message.NewResponse(dl.invite, 200, "success.")
 	resp.SetBody(string(message.ContentType__SDP), []byte(sdp))
-	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), dl.from.Protocol(), nil))
+	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), "", nil))
 	// resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().Host)))
 
 	err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
