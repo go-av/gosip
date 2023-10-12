@@ -158,6 +158,9 @@ func (client *Client) Login(expire int, resp message.Response) error {
 			cseq.SeqNo += 1
 			msg.SetHeader(cseq)
 		}
+		if callID, ok := resp.CallID(); ok {
+			msg.SetHeader(callID)
+		}
 	}
 
 	if client.updateRegisterHeader != nil {
