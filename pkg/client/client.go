@@ -346,12 +346,16 @@ func (client *Client) HandleResponse(resp message.Response) {
 }
 
 func (client *Client) Call(ctx context.Context, user string, sdp string) (dialog.Dialog, error) {
+	return client.CallWithUpdateMessage(ctx, user, sdp, nil)
+}
+
+func (client *Client) CallWithUpdateMessage(ctx context.Context, user string, sdp string, updateMsg func(message.Message)) (dialog.Dialog, error) {
 	if !client.auth {
 		return nil, errors.New("Unauthorized")
 	}
 	dl, err := dialog.Invite(ctx, client,
 		dialog.NewFrom(client.displayName, client.user, client.protocol, client.localAddr.String()),
-		dialog.NewTo(user, client.serverAddr.String()), []byte(sdp), nil)
+		dialog.NewTo(user, client.serverAddr.String()), []byte(sdp), updateMsg)
 
 	if err != nil {
 		return nil, err
