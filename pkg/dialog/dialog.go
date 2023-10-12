@@ -148,8 +148,8 @@ func Invite(ctx context.Context, sender Sender, from From, to To, sdp []byte, up
 	toAddress := message.NewAddress("", dl.to.HostAndPort().Host, dl.to.HostAndPort().Port)
 	msg := message.NewRequestMessage(dl.from.Protocol(), method.INVITE, toAddress.Clone().SetUser(dl.to.User()))
 	msg.AppendHeader(
-		message.NewViaHeader(dl.from.Protocol(), toAddress.Host, toAddress.Port, message.NewParams().Set("branch", dl.branchID).Set("rport", "")),
-		message.NewFromHeader("", toAddress.Clone().SetUser(dl.from.User()), message.NewParams().Set("tag", utils.RandString(20))),
+		message.NewViaHeader(dl.from.Protocol(), fromAddress.Host, fromAddress.Port, message.NewParams().Set("branch", dl.branchID).Set("rport", "")),
+		message.NewFromHeader("", fromAddress.Clone().SetUser(dl.from.User()), message.NewParams().Set("tag", utils.RandString(20))),
 		message.NewToHeader("", toAddress.Clone().SetUser(dl.to.User()), nil),
 		message.NewContactHeader("", fromAddress.Clone().SetUser(dl.from.User()), "", message.NewParams().Set("expires", "4800")),
 		message.NewAllowHeader(),
