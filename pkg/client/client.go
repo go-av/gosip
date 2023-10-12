@@ -87,7 +87,7 @@ func (client *Client) Registrar(address string, protocol string) error {
 	}
 
 	client.serverAddr = addr
-	_, err = client.stack.CreateListenPoint(client.protocol, client.localAddr.String())
+	_, err = client.stack.CreateListenPoint(client.protocol, fmt.Sprintf("0.0.0.0:%d", client.localAddr.Port))
 	if err != nil {
 		return err
 	}
