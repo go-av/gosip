@@ -1,3 +1,3 @@
 
 run:
-	go run main.go --ip=172.20.30.67 --port=25060
+	go run main.go --ip=192.168.50.111 --port=25060

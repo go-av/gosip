@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"time"
@@ -19,7 +20,46 @@ type UDPTransport struct {
 	buffer           []byte
 }
 
-func (ut *UDPTransport) Read() (message.Message, error) {
+func (ut *UDPTransport) GetHost() string {
+	return ut.host
+}
+
+func (ut *UDPTransport) GetPort() int {
+	return ut.port
+}
+
+func (ut *UDPTransport) Listen(addr string, funcs ...ListenOptionFunc) error {
+	for _, f := range funcs {
+		f(ut)
+	}
+	a, err := net.ResolveUDPAddr("udp", addr)
+	if err != nil {
+		return err
+	}
+
+	ut.address = a
+
+	ut.Connection, err = reuse.ListenPacket("udp", addr)
+	if err != nil {
+		logrus.Error(err)
+		return err
+	}
+	return nil
+}
+
+func (ut *UDPTransport) Start(ctx context.Context) {
+	ut.buffer = make([]byte, 20480)
+	logrus.Info("Starting UDP Listening Point ")
+	for {
+		msg, err := ut.readMessage()
+		if err == nil {
+			ut.transportChannel <- msg
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func (ut *UDPTransport) readMessage() (message.Message, error) {
 	n, addr, err := ut.Connection.ReadFrom(ut.buffer)
 	if err != nil {
 		logrus.Error(err)
@@ -37,42 +77,6 @@ func (ut *UDPTransport) Read() (message.Message, error) {
 		req.SetRequestFrom("udp", addr.String())
 	}
 	return msg, nil
-}
-
-func (ut *UDPTransport) GetHost() string {
-	return ut.host
-}
-
-func (ut *UDPTransport) GetPort() int {
-	return ut.port
-}
-
-func (ut *UDPTransport) Build(addr string) error {
-	a, err := net.ResolveUDPAddr("udp", addr)
-	if err != nil {
-		return err
-	}
-
-	ut.address = a
-
-	ut.Connection, err = reuse.ListenPacket("udp", addr)
-	if err != nil {
-		logrus.Error(err)
-		return err
-	}
-	return nil
-}
-
-func (ut *UDPTransport) Start() {
-	ut.buffer = make([]byte, 20480)
-	logrus.Info("Starting UDP Listening Point ")
-	for {
-		msg, err := ut.Read()
-		if err == nil {
-			ut.transportChannel <- msg
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
 }
 
 func (ut *UDPTransport) SetTransportChannel(channel chan message.Message) {

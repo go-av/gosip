@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -49,7 +50,7 @@ func (tt *TCPTransport) readConn(addr string, conn net.Conn) error {
 		}
 	}
 }
-func (tt *TCPTransport) Read() error {
+func (tt *TCPTransport) accept() error {
 	conn, err := tt.listener.Accept()
 	if err != nil {
 		logrus.Error(err)
@@ -63,11 +64,11 @@ func (tt *TCPTransport) Read() error {
 	return nil
 }
 
-func (tt *TCPTransport) Start() {
+func (tt *TCPTransport) Start(ctx context.Context) {
 	tt.buffer = make([]byte, 20480)
 	logrus.Info("Starting TCP Listening Point")
 	for {
-		tt.Read()
+		tt.accept()
 		time.Sleep(100 * time.Millisecond)
 	}
 }
@@ -76,7 +77,11 @@ func (tt *TCPTransport) SetTransportChannel(channel chan message.Message) {
 	tt.transportChannel = channel
 }
 
-func (tt *TCPTransport) Build(addr string) error {
+func (tt *TCPTransport) Listen(addr string, funcs ...ListenOptionFunc) error {
+	for _, f := range funcs {
+		f(tt)
+	}
+
 	a, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
 		return err
@@ -88,7 +93,6 @@ func (tt *TCPTransport) Build(addr string) error {
 		logrus.Error(err)
 		os.Exit(1)
 	}
-
 	return nil
 }
 

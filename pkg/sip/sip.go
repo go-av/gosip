@@ -31,12 +31,12 @@ type SipStack struct {
 	funcMap map[method.Method]func(message.Message)
 }
 
-func (stack *SipStack) CreateListenPoint(protocol string, addr string) (transport.ListeningPoint, error) {
+func (stack *SipStack) CreateListenPoint(protocol string, addr string, funcs ...transport.ListenOptionFunc) (transport.ListeningPoint, error) {
 	protocol = strings.ToLower(protocol)
 	if _, ok := stack.listeningPoints.Load(protocol); ok {
 		return nil, fmt.Errorf("%s listen point is exist", protocol)
 	}
-	listenpoint, err := transport.NewTransportListenPoint(protocol, addr)
+	listenpoint, err := transport.NewTransportListenPoint(protocol, addr, funcs...)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func (stack *SipStack) SetFuncHandler(method method.Method, handler func(message
 func (stack *SipStack) Start(ctx context.Context) {
 	stack.listeningPoints.Range(func(key, value any) bool {
 		if lp, ok := value.(transport.ListeningPoint); ok {
-			go lp.Start()
+			go lp.Start(ctx)
 		}
 		return true
 	})

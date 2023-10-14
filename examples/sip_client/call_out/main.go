@@ -8,10 +8,13 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/go-av/gosip/pkg/client"
 	"github.com/go-av/gosip/pkg/dialog"
+	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/utils"
 	"github.com/go-cmd/cmd"
@@ -28,8 +31,8 @@ func main() {
 	serverAddr := flag.String("server-addr", "172.20.50.12:5060", "SIP 服务端地址")
 	to := flag.String("to", "snail_in", "call to user")
 	flag.Parse()
-
-	client, err := client.NewClient(context.Background(), "蜗牛", "34030000001110000002", "12345678", *localAddr, nil)
+	ctx, _ := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	client, err := client.NewClient(ctx, "蜗牛", "111111", "123456", *localAddr, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -54,13 +57,18 @@ a=sendrecv
 		panic(err)
 	}
 
-	ctx := context.Background()
+	client.WithUpdateRegisterHeader(func(expire int, req, resp message.Message) {
+		req.SetStartLine(func() string {
+			return "REGISTER sip:1001@1400793549.tccc.qcloud.com SIP/2.0"
+		})
+	})
+
 	err = client.Registrar(*serverAddr, *protocol)
 	if err != nil {
 		panic(err)
 	}
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	fmt.Println("呼叫", *to)
 	dl, err := client.Call(ctx, *to, sd.Marshal())
@@ -70,6 +78,8 @@ a=sendrecv
 
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case <-dl.Context().Done():
 			return
 		case state := <-dl.State():

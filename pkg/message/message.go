@@ -28,6 +28,7 @@ type Headers interface {
 }
 
 type Message interface {
+	SetStartLine(startLine func() string)
 	StartLine() string
 	String() string
 	Body() []byte
@@ -45,6 +46,10 @@ type message struct {
 
 	body        []byte
 	contentType string
+}
+
+func (msg *message) SetStartLine(startLine func() string) {
+	msg.startLine = startLine
 }
 
 func (msg *message) StartLine() string {
