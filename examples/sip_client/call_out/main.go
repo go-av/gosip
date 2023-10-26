@@ -14,7 +14,6 @@ import (
 
 	"github.com/go-av/gosip/pkg/client"
 	"github.com/go-av/gosip/pkg/dialog"
-	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/sdp"
 	"github.com/go-av/gosip/pkg/utils"
 	"github.com/go-cmd/cmd"
@@ -57,11 +56,11 @@ a=sendrecv
 		panic(err)
 	}
 
-	client.WithUpdateRegisterHeader(func(expire int, req, resp message.Message) {
-		req.SetStartLine(func() string {
-			return "REGISTER sip:1001@1400793549.tccc.qcloud.com SIP/2.0"
-		})
-	})
+	// client.WithUpdateRegisterHeader(func(expire int, req, resp message.Message) {
+	// 	req.SetStartLine(func() string {
+	// 		return "REGISTER sip:xx@123.123.123.123 SIP/2.0"
+	// 	})
+	// })
 
 	err = client.Registrar(*serverAddr, *protocol)
 	if err != nil {
