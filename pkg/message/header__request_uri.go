@@ -25,17 +25,17 @@ func (contact *RequestURIHeader) Name() string {
 	return "Request-URI"
 }
 
-func (contact *RequestURIHeader) Value() string {
+func (req *RequestURIHeader) Value() string {
 	buf := bytes.NewBuffer(nil)
 
-	if contact.DisplayName != "" {
-		buf.WriteString("\"" + contact.DisplayName + "\"" + " ")
+	if req.DisplayName != "" {
+		buf.WriteString("\"" + req.DisplayName + "\"" + " ")
 	}
 
-	if contact.Address != nil {
-		s := contact.Address.String()
-		if contact.Transport != "" {
-			s += fmt.Sprintf(";transport=%s", contact.Transport)
+	if req.Address != nil {
+		s := req.Address.String()
+		if req.Transport != "" {
+			s += fmt.Sprintf(";transport=%s", req.Transport)
 		}
 
 		buf.WriteString(fmt.Sprintf("<%s>", s))
@@ -43,28 +43,28 @@ func (contact *RequestURIHeader) Value() string {
 		buf.WriteString("*")
 	}
 
-	if (contact.Params != nil) && (contact.Params.Length() > 0) {
+	if (req.Params != nil) && (req.Params.Length() > 0) {
 		buf.WriteString(";")
-		buf.WriteString(contact.Params.ToString(";"))
+		buf.WriteString(req.Params.ToString(";"))
 	}
 
 	return buf.String()
 }
 
-func (contact *RequestURIHeader) Clone() Header {
+func (req *RequestURIHeader) Clone() Header {
 	var newCnt *RequestURIHeader
-	if contact == nil {
+	if req == nil {
 		return newCnt
 	}
 
 	newCnt = &RequestURIHeader{
-		DisplayName: contact.DisplayName,
+		DisplayName: req.DisplayName,
 	}
-	if contact.Address != nil {
-		newCnt.Address = contact.Address.Clone()
+	if req.Address != nil {
+		newCnt.Address = req.Address.Clone()
 	}
-	if contact.Params != nil {
-		newCnt.Params = contact.Params.Clone()
+	if req.Params != nil {
+		newCnt.Params = req.Params.Clone()
 	}
 
 	return newCnt
