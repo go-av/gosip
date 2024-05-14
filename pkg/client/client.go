@@ -247,7 +247,7 @@ func (client *Client) HandleRequest(req message.Request) {
 			return
 		}
 
-		response, err := client.handler.ReceiveMessage(client.ctx, req.Method(), message.NewBody(contentTypeHeader.Value(), req.Body()))
+		response, err := client.handler.ReceiveMessage(client.ctx, req.Method(), req, message.NewBody(contentTypeHeader.Value(), req.Body()))
 		if err != nil {
 			logrus.Error(err)
 			return

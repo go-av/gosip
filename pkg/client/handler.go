@@ -28,5 +28,5 @@ type Response struct {
 }
 
 type Handler interface {
-	ReceiveMessage(context.Context, method.Method, message.Body) (*Response, error)
+	ReceiveMessage(context.Context, method.Method, message.Headers, message.Body) (*Response, error)
 }
