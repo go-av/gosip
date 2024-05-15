@@ -261,6 +261,10 @@ func (client *Client) HandleRequest(req message.Request) {
 		if response.body != nil {
 			resp.SetBody(string(response.contentType), response.body)
 		}
+		if response.header != nil {
+			resp.AppendHeader(response.header.Headers()...)
+		}
+
 		client.stack.Send(client.protocol, client.serverAddr.String(), resp)
 	}
 }

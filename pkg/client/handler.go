@@ -20,11 +20,17 @@ func (r *Response) WithBody(contentType message.ContentType, body []byte) *Respo
 	return r
 }
 
+func (r *Response) WithHeader(header message.Headers) *Response {
+	r.header = header
+	return r
+}
+
 type Response struct {
 	code        message.StatusCode
 	reason      string
 	body        []byte
 	contentType message.ContentType
+	header      message.Headers
 }
 
 type Handler interface {
