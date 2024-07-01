@@ -151,7 +151,7 @@ func (client *Client) Login(expire int, resp message.Response) error {
 	if resp != nil {
 		authHeader, ok := resp.WWWAuthenticate()
 		if ok {
-			msg.SetHeader(authHeader.Auth(client.requestUser, client.password, "sip:"+client.serverAddr.Host))
+			msg.SetHeader(authHeader.Auth(client.user, client.password, "sip:"+client.serverAddr.Host))
 		}
 
 		if cseq, ok := resp.CSeq(); ok {
