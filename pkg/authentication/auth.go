@@ -229,7 +229,9 @@ func (auth *Authorization) Clone() *Authorization {
 
 func (auth *Authorization) Auth(username string, password string, method string, uri string) *Authorization {
 	newAuth := auth.Clone()
-	newAuth.SetUsername(username)
+	if newAuth.username == "" {
+		newAuth.SetUsername(username)
+	}
 	newAuth.SetPassword(password)
 	if newAuth.cnonce == "" {
 		newAuth.SetCNonce(utils.RandString(10))
