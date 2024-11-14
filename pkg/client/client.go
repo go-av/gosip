@@ -139,7 +139,7 @@ func (client *Client) Login(expire int, resp message.Response) error {
 	msg.AppendHeader(
 		message.NewViaHeader(client.protocol, client.localAddr.Host, client.localAddr.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		message.NewAllowHeader(),
-		message.NewCSeqHeader(1, method.REGISTER),
+		message.NewCSeqHeader(uint32(time.Now().Unix()), method.REGISTER),
 		message.NewFromHeader(client.displayName, localAddr, message.NewParams().Set("tag", utils.RandString(20))),
 		message.NewToHeader(client.displayName, localAddr, nil),
 		message.NewCallIDHeader(utils.RandString(20)),

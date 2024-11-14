@@ -153,7 +153,7 @@ func Invite(ctx context.Context, sender Sender, from From, to To, sdp []byte, up
 		message.NewToHeader("", toAddress.Clone().SetUser(dl.to.User()), nil),
 		message.NewContactHeader("", fromAddress.Clone().SetUser(dl.from.User()), "", message.NewParams().Set("expires", "4800")),
 		message.NewAllowHeader(),
-		message.NewCSeqHeader(10, method.INVITE),
+		message.NewCSeqHeader(uint32(time.Now().Unix()), method.INVITE),
 		message.NewMaxForwardsHeader(70),
 		message.NewCallIDHeader(dl.dialogID),
 	)
@@ -243,7 +243,7 @@ func (dl *dialog) HandleResponse(resp message.Response) {
 				message.CopyHeaders(resp, req, "Via", "Call-ID", "From", "To")
 				req.AppendHeader(
 					message.NewMaxForwardsHeader(70),
-					message.NewCSeqHeader(10, method.ACK),
+					message.NewCSeqHeader(cseq.SeqNo, method.ACK),
 				)
 				err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
 				if err != nil {
@@ -353,7 +353,7 @@ func (dl *dialog) Run(del func(callID string)) {
 				message.CopyHeaders(dl.invite, req, "Via", "Call-ID", "From", "To")
 				req.AppendHeader(
 					message.NewMaxForwardsHeader(70),
-					message.NewCSeqHeader(10, method.ACK),
+					message.NewCSeqHeader(uint32(time.Now().Unix()), method.ACK),
 				)
 				err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
 				if err != nil {
@@ -437,7 +437,7 @@ func (dl *dialog) Bye() {
 		message.CopyHeaders(dl.invite, req, "Max-Forwards", "Call-ID", "From", "To")
 		req.AppendHeader(
 			message.NewViaHeader(dl.from.Protocol(), contact.Address.Host, contact.Address.Port, message.NewParams().Set("branch", dl.branchID).Set("rport", "")),
-			message.NewCSeqHeader(12, method.BYE),
+			message.NewCSeqHeader(uint32(time.Now().Unix()), method.BYE),
 			message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.to.HostAndPort().String())),
 		)
 		err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), req)
@@ -455,7 +455,7 @@ func (dl *dialog) Bye() {
 		message.CopyHeaders(dl.invite, req, "Max-Forwards", "Call-ID", "From", "To")
 		req.AppendHeader(
 			message.NewViaHeader(dl.from.Protocol(), dl.From().HostAndPort().Host, dl.From().HostAndPort().Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
-			message.NewCSeqHeader(21, method.BYE),
+			message.NewCSeqHeader(uint32(time.Now().Unix()), method.BYE),
 			message.NewRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().String())),
 		)
 

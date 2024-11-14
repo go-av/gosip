@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"strings"
+	"time"
 
 	"github.com/go-av/gosip/pkg/message"
 	"github.com/go-av/gosip/pkg/method"
@@ -75,7 +76,7 @@ func (g *GB28181) SendMessage(client server.Client, data any) (message.Response,
 	msg := message.NewRequestMessage(protocol, method.MESSAGE, clientAddress)
 	msg.AppendHeader(
 		message.NewViaHeader(protocol, g.server.ServerAddress().Host, g.server.ServerAddress().Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
-		message.NewCSeqHeader(1, method.MESSAGE),
+		message.NewCSeqHeader(uint32(time.Now().Unix()), method.MESSAGE),
 		message.NewFromHeader("", g.server.ServerAddress().Clone().SetUser(g.handler.ServerSIPID()).WithDomain(g.handler.Realm()), message.NewParams().Set("tag", utils.RandString(20))),
 		message.NewToHeader("", clientAddress, nil),
 		message.NewMaxForwardsHeader(70),
