@@ -177,7 +177,7 @@ func Receive(sender Sender, from From, to To, callID string, msg message.Request
 	dl.sdp = msg.Body()
 	dl.invite = msg
 	// todo bandid
-	resp := message.NewResponse(dl.invite, 180, "ok")
+	resp := message.NewResponse(dl.invite, 180, "Ringing")
 	resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().Host)))
 	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), "", nil))
 	err := dl.sender.Send(dl.from.Protocol(), dl.from.HostAndPort().String(), resp)
@@ -283,7 +283,7 @@ func (dl *dialog) HandleRequest(req message.Request) {
 		} else {
 			addr = dl.from.HostAndPort()
 		}
-		resp := message.NewResponse(req, 200, "success.")
+		resp := message.NewResponse(req, 200, "OK")
 		resp.SetHeader(
 			message.NewViaHeader(dl.from.Protocol(), addr.Host, addr.Port, message.NewParams().Set("branch", utils.GenerateBranchID()).Set("rport", "")),
 		)
@@ -296,7 +296,7 @@ func (dl *dialog) HandleRequest(req message.Request) {
 
 		dl.cancel()
 	case method.CANCEL:
-		resp := message.NewResponse(req, 200, "success.")
+		resp := message.NewResponse(req, 200, "OK")
 		err := dl.sender.Send(dl.from.Protocol(), dl.to.HostAndPort().String(), resp)
 		if err != nil {
 			logrus.Error(err)
@@ -305,7 +305,7 @@ func (dl *dialog) HandleRequest(req message.Request) {
 		dl.cancel()
 	case method.ACK:
 		dl.timer.Stop()
-		resp := message.NewResponse(req, 200, "success.")
+		resp := message.NewResponse(req, 200, "OK")
 		addr := dl.to.HostAndPort().String()
 		if dl.origin == CallIN {
 			addr = dl.from.HostAndPort().String()
@@ -386,7 +386,7 @@ func (dl *dialog) Answer(sdp string) error {
 		return errors.New("非法操作")
 	}
 	dl.TimerReset(10 * time.Second)
-	resp := message.NewResponse(dl.invite, 200, "success.")
+	resp := message.NewResponse(dl.invite, 200, "OK")
 	resp.SetBody(string(message.ContentType__SDP), []byte(sdp))
 	resp.SetHeader(message.NewContactHeader("", message.NewAddress(dl.to.User(), dl.to.HostAndPort().Host, dl.to.HostAndPort().Port), "", nil))
 	// resp.SetHeader(message.NewRecordRouteHeader(fmt.Sprintf("<sip:%s;lr>", dl.from.HostAndPort().Host)))
@@ -397,10 +397,6 @@ func (dl *dialog) Answer(sdp string) error {
 		return err
 	}
 
-	if err != nil {
-		logrus.Error(err)
-		return err
-	}
 	return nil
 }
 
