@@ -122,6 +122,14 @@ func (s *server) HandleRequest(req message.Request) {
 
 		callID, ok := req.CallID()
 		if !ok {
+			resp = message.NewResponse(req, 400, "Bad Request: CallID Required")
+			_ = s.Send(protocol, adddress, resp)
+			return
+		}
+
+		if _, ok := req.Contact(); !ok {
+			resp = message.NewResponse(req, 400, "Bad Request: Contact Required")
+			_ = s.Send(protocol, adddress, resp)
 			return
 		}
 
