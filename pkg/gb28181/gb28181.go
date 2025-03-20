@@ -56,7 +56,7 @@ func (g *GB28181) Handler(ctx context.Context, client server.Client, body []byte
 		return g.Broadcast(ctx, client, body)
 	}
 
-	return server.NewResponse(200, "success."), nil
+	return server.NewResponse(200, "OK"), nil
 }
 
 type ClientEncodingFormat interface {

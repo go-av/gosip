@@ -8,5 +8,5 @@ import (
 )
 
 func (d *SipHandler) Keepalive(ctx context.Context, client server.Client, msg *gb28181.Keepalive) (*server.Response, error) {
-	return server.NewResponse(200, "Success"), nil
+	return server.NewResponse(200, "OK"), nil
 }

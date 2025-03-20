@@ -13,19 +13,19 @@ func (d *SipHandler) DeviceInfo(ctx context.Context, client server.Client, msg *
 	fmt.Println("xxxxxxxxxxxxxx")
 	spew.Dump(msg)
 	fmt.Println("xxxxxxxxxxxxxx")
-	return server.NewResponse(200, "Success"), nil
+	return server.NewResponse(200, "OK"), nil
 }
 
 func (d *SipHandler) DeviceStatus(ctx context.Context, client server.Client, msg *gb28181.DeviceStatus) (*server.Response, error) {
 	fmt.Println("xxxxxxxxxxxxxx")
 	spew.Dump(msg)
 	fmt.Println("xxxxxxxxxxxxxx")
-	return server.NewResponse(200, "Success"), nil
+	return server.NewResponse(200, "OK"), nil
 }
 
 func (d *SipHandler) PresetQuery(ctx context.Context, client server.Client, msg *gb28181.PresetQuery) (*server.Response, error) {
 	fmt.Println("xxxxxxxxxxxxxx")
 	spew.Dump(msg)
 	fmt.Println("xxxxxxxxxxxxxx")
-	return server.NewResponse(200, "Success"), nil
+	return server.NewResponse(200, "OK"), nil
 }

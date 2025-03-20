@@ -229,7 +229,7 @@ func (client *Client) HandleRequest(req message.Request) {
 		}
 
 		if req.Method() == method.BYE || req.Method() == method.CANCEL {
-			resp := message.NewResponse(req, 200, "Ok")
+			resp := message.NewResponse(req, 200, "OK")
 			_ = client.Send(client.protocol, client.serverAddr.String(), resp)
 			return
 		}

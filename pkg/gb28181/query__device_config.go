@@ -47,5 +47,5 @@ func (g *GB28181) ConfigDownload(ctx context.Context, client server.Client, body
 	fmt.Println("xxxxxxxxxxx")
 	fmt.Println(string(body))
 	fmt.Println("xxxxxxxxxxx")
-	return server.NewResponse(200, "success."), nil
+	return server.NewResponse(200, "OK"), nil
 }

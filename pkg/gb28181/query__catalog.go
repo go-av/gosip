@@ -124,5 +124,5 @@ func (g *GB28181) Catalog(ctx context.Context, client server.Client, body []byte
 	}
 
 	g.handler.Catalog(ctx, client, cl)
-	return server.NewResponse(200, "success."), nil
+	return server.NewResponse(200, "OK"), nil
 }

@@ -219,7 +219,7 @@ func call(w http.ResponseWriter, r *http.Request) {
 				}
 
 				answer, stop := do(dl.Context(), w, udpConns, offer)
-				resp(w, 200, "success", encode(answer))
+				resp(w, 200, "OK", encode(answer))
 				go func() {
 					<-stop
 					fmt.Println("退出")

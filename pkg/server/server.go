@@ -166,7 +166,7 @@ func (s *server) HandleRequest(req message.Request) {
 			dl := v.(dialog.Dialog)
 			dl.HandleRequest(req)
 		} else {
-			resp := message.NewResponse(req, 200, "success")
+			resp := message.NewResponse(req, 200, "OK")
 			_ = s.Send(protocol, adddress, resp)
 		}
 
