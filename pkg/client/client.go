@@ -317,8 +317,8 @@ func (client *Client) HandleResponse(resp message.Response) {
 				client.authCallback(resp)
 			}
 		}
-
-	case method.INVITE, method.ACK, method.BYE, method.CANCEL:
+	case method.ACK:
+	case method.INVITE, method.BYE, method.CANCEL:
 		callID, ok := resp.CallID()
 		if !ok {
 			return
