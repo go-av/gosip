@@ -399,11 +399,11 @@ func (client *Client) SendMessage(request message.Request) (message.Response, er
 	}
 
 	t := time.NewTimer(10 * time.Second)
+	defer t.Stop()
 	select {
 	case <-t.C:
 		return nil, errors.New("请求超时")
 	case resp := <-respChan:
-		t.Stop()
 		if resp.err != nil {
 			return nil, err
 		}

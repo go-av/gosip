@@ -347,6 +347,7 @@ func (dl *dialog) Run(del func(callID string)) {
 		select {
 		case <-dl.timer.C:
 			if dl.origin == CallOUT && dl.currentstate.state < Accepted {
+				logrus.Debugf("%s 超时关闭", dl.dialogID)
 				// 取消请求
 				fromAddress := message.NewAddress("", dl.from.HostAndPort().Host, dl.from.HostAndPort().Port)
 				req := message.NewRequestMessage(dl.from.Protocol(), method.CANCEL, fromAddress.Clone().SetUser(dl.to.User()))
