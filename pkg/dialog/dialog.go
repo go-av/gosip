@@ -305,16 +305,16 @@ func (dl *dialog) HandleRequest(req message.Request) {
 		dl.cancel()
 	case method.ACK:
 		dl.timer.Stop()
-		resp := message.NewResponse(req, 200, "OK")
-		addr := dl.to.HostAndPort().String()
-		if dl.origin == CallIN {
-			addr = dl.from.HostAndPort().String()
-		}
-		err := dl.sender.Send(dl.from.Protocol(), addr, resp)
-		if err != nil {
-			logrus.Error(err)
-			return
-		}
+		// resp := message.NewResponse(req, 200, "OK")
+		// addr := dl.to.HostAndPort().String()
+		// if dl.origin == CallIN {
+		// 	addr = dl.from.HostAndPort().String()
+		// }
+		// err := dl.sender.Send(dl.from.Protocol(), addr, resp)
+		// if err != nil {
+		// 	logrus.Error(err)
+		// 	return
+		// }
 		dl.updateState(Accepted, Accepted.String())
 	default:
 		logrus.Debugf("收到的%s消息未处理", req.Method())

@@ -216,9 +216,7 @@ func (client *Client) HandleRequest(req message.Request) {
 			client.dialogs.Delete(callID)
 		})
 		client.receive <- dl
-	case method.ACK:
-		return
-	case method.BYE, method.CANCEL:
+	case method.ACK, method.BYE, method.CANCEL:
 		callID, ok := req.CallID()
 		if !ok {
 			return
