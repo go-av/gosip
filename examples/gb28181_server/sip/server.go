@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-av/gosip/pkg/gb28181"
 	"github.com/go-av/gosip/pkg/message"
+	"github.com/go-av/gosip/pkg/method"
 	"github.com/go-av/gosip/pkg/server"
 )
 
@@ -87,7 +88,7 @@ func (d *SipHandler) ServerSIPID() string {
 	return d.sipID
 }
 
-func (d *SipHandler) ReceiveMessage(ctx context.Context, client server.Client, body message.Body) (*server.Response, error) {
+func (d *SipHandler) ReceiveMessage(ctx context.Context, client server.Client, method method.Method, body message.Body) (*server.Response, error) {
 	if body.ContentType() == "Application/MANSCDP+xml" {
 		return d.gb28181.Handler(ctx, client, body.Data())
 	}

@@ -193,12 +193,12 @@ func (s *server) HandleRequest(req message.Request) {
 		return
 	case method.INFO:
 
-	case method.MESSAGE:
+	case method.MESSAGE, method.NOTIFY:
 		contentTypeHeader, ok := req.ContentType()
 		if !ok {
 			return
 		}
-		response, err := s.handler.ReceiveMessage(s.ctx, client, message.NewBody(contentTypeHeader.Value(), req.Body()))
+		response, err := s.handler.ReceiveMessage(s.ctx, client, req.Method(), message.NewBody(contentTypeHeader.Value(), req.Body()))
 		if err != nil {
 			logrus.Error(err)
 			return
