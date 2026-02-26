@@ -33,10 +33,6 @@ func (c *Client) User() string {
 	return c.user
 }
 
-func (c *Client) Password() string {
-	return "12345678"
-}
-
 func (c *Client) SetAuth(auth bool) error {
 	c.auth = auth
 	if auth {

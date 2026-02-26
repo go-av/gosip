@@ -84,6 +84,10 @@ func (d *SipHandler) Realm() string {
 	return d.realm
 }
 
+func (d *SipHandler) AccessPassword(ctx context.Context, user string) string {
+	return "12345678"
+}
+
 func (d *SipHandler) ServerSIPID() string {
 	return d.sipID
 }

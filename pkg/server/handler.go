@@ -31,6 +31,7 @@ type Response struct {
 type Handler interface {
 	GetClient(deviceID string) (Client, error)
 	Realm() string
+	AccessPassword(ctx context.Context, code string) string // 设备接入密码
 	ReceiveMessage(context.Context, Client, method.Method, message.Body) (*Response, error)
 }
 

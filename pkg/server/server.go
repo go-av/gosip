@@ -41,7 +41,7 @@ func NewServer(needauth bool, handler Handler) *server {
 	s := &server{
 		needauth: needauth,
 		handler:  handler,
-		receive:  make(chan dialog.Dialog, 5),
+		receive:  make(chan dialog.Dialog, 100),
 	}
 	return s
 }
@@ -100,7 +100,7 @@ func (s *server) HandleRequest(req message.Request) {
 		}
 
 		auth := authentication.Parse(authheader.Value())
-		if auth.Response() != auth.Clone().Auth(auth.Username(), client.Password(), string(req.Method()), auth.Uri()).Response() {
+		if auth.Response() != auth.Clone().Auth(auth.Username(), s.handler.AccessPassword(s.ctx, user), string(req.Method()), auth.Uri()).Response() {
 			resp := message.NewResponse(req, 403, "Password Error")
 			s.stack.Send(protocol, adddress, resp)
 			return
@@ -240,10 +240,13 @@ func (s *server) HandleResponse(resp message.Response) {
 	default:
 		callID, ok := resp.CallID()
 		if ok {
+			if resp.StatusCode() < 200 {
+				return
+			}
 			if callback, ok := s.responses.Load(callID.Value()); ok {
 				r := response{}
 				if !resp.IsSuccess() {
-					r.err = errors.New(resp.Reason())
+					r.err = fmt.Errorf("%d:%s", resp.StatusCode(), resp.Reason())
 				}
 				r.resp = resp
 				callback.(chan response) <- r
